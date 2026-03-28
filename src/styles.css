@@ -49,9 +49,7 @@ body {
 }
 
 .logo-icon {
-  background-color: var(--accent);
-  color: white;
-  padding: 0.5rem;
+  padding: 0.1rem;
   border-radius: 8px;
   display: flex;
   align-items: center;
@@ -389,66 +387,4 @@ td {
   height: 100%;
   background-color: var(--accent);
   border-radius: 4px;
-}
-
-/* Login Styles */
-.login-container {
-  height: 100vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background-color: var(--bg-main);
-}
-
-.login-card {
-  background: white;
-  padding: 3rem;
-  border-radius: 20px;
-  box-shadow: 0 10px 25px rgba(0,0,0,0.05);
-  width: 100%;
-  max-width: 400px;
-}
-
-.login-header {
-  text-align: center;
-  margin-bottom: 2rem;
-}
-
-.form-group {
-  margin-bottom: 1.5rem;
-}
-
-.form-group label {
-  display: block;
-  margin-bottom: 0.5rem;
-  font-size: 0.9rem;
-  font-weight: 500;
-}
-
-.form-group input {
-  width: 100%;
-  padding: 0.75rem;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  outline: none;
-}
-
-.form-group input:focus {
-  border-color: var(--accent);
-}
-
-.login-btn {
-  width: 100%;
-  background: var(--accent);
-  color: white;
-  border: none;
-  padding: 0.75rem;
-  border-radius: 8px;
-  font-weight: 600;
-  cursor: pointer;
-  margin-top: 1rem;
-}
-
-.login-btn:hover {
-  opacity: 0.9;
 }

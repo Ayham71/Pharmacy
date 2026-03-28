@@ -64,9 +64,45 @@ const Dashboard = ({ onSignOut }) => {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [isPharmacyOpen, setIsPharmacyOpen] = useState(true);
 
+  const [recentOrders, setRecentOrders] = useState([
+    { id: '#ORD-2841', name: 'James Miller', status: 'Pending', amount: '$142.00' },
+    { id: '#ORD-2839', name: 'Thomas Shelby', status: 'Completed', amount: '$210.80' },
+    { id: '#ORD-2838', name: 'Arthur Shelby', status: 'Completed', amount: '$85.00' },
+    { id: '#ORD-2837', name: 'John Doe', status: 'Pending', amount: '$45.20' }
+  ]);
+
+  const [allOrders, setAllOrders] = useState([
+    { id: '#ORD-2841', name: 'James Miller', items: 3, total: '$142.00', status: 'Pending', date: '2026-02-05' },
+    { id: '#ORD-2839', name: 'Thomas Shelby', items: 5, total: '$210.80', status: 'Completed', date: '2026-02-04' },
+    { id: '#ORD-2838', name: 'Arthur Shelby', items: 2, total: '$85.00', status: 'Completed', date: '2026-02-04' },
+    { id: '#ORD-2837', name: 'John Doe', items: 1, total: '$45.20', status: 'Pending', date: '2026-02-03' },
+    { id: '#ORD-2836', name: 'Sarah Wilson', items: 4, total: '$178.50', status: 'Processing', date: '2026-02-03' }
+  ]);
+
+  const [activeDropdownOrder, setActiveDropdownOrder] = useState(null);
+
   const handleMenuClick = (menuId) => {
     setActiveMenu(menuId);
+    setActiveDropdownOrder(null);
   };
+
+  const updateOrderStatus = (orderId, newStatus) => {
+    const update = (orders) => orders.map((order) => order.id === orderId ? {...order, status: newStatus} : order);
+    setRecentOrders((prev) => update(prev));
+    setAllOrders((prev) => update(prev));
+    setActiveDropdownOrder(null);
+  };
+
+  const toggleOrderDropdown = (orderId) => {
+    setActiveDropdownOrder((prev) => (prev === orderId ? null : orderId));
+  };
+
+  useEffect(() => {
+    const handleClickOutside = () => setActiveDropdownOrder(null);
+    window.addEventListener('click', handleClickOutside);
+    return () => window.removeEventListener('click', handleClickOutside);
+  }, []);
+
 
   const handleToggleSwitch = () => {
     setIsPharmacyOpen(!isPharmacyOpen);
@@ -98,7 +134,7 @@ const Dashboard = ({ onSignOut }) => {
       <aside className="sidebar">
         <div className="logo-section">
           <div className="logo-icon">
-            <Plus size={24} />
+            <img src="/logo.jpeg" alt="Logo" style={{width: 70, height: 70}} />
           </div>
           <div className="logo-text">
             <h1>PharmaAdmin</h1>
@@ -184,13 +220,12 @@ const Dashboard = ({ onSignOut }) => {
           </div>
 
           <div className="header-actions">
-            <div style={{position: 'relative'}}>
+            <div style={{position: 'relative', cursor: 'pointer'}}>
               <Bell size={20} color="var(--text-muted)" />
               <div style={{position: 'absolute', top: -2, right: -2, width: 8, height: 8, background: 'var(--danger)', borderRadius: '50%', border: '2px solid white'}}></div>
             </div>
             <div className="user-profile">
-              GreenCross Pharmacy #402
-              <ChevronDown size={16} />
+              The Honey Pharmacy 
             </div>
           </div>
         </header>
@@ -202,10 +237,7 @@ const Dashboard = ({ onSignOut }) => {
                 <h2>Daily Overview</h2>
                 <p>Last updated: {formatDateTime(currentTime)}</p>
               </div>
-              <button className="btn-primary">
-                <Plus size={20} />
-                New Prescription
-              </button>
+              
             </section>
 
             <section className="stats-grid">
@@ -247,8 +279,17 @@ const Dashboard = ({ onSignOut }) => {
                     <div style={{fontSize: '0.75rem', fontWeight: 400, color: 'var(--text-muted)', marginTop: 4}}>Weekly revenue trends</div>
                   </div>
                   <div style={{display: 'flex', gap: 10}}>
-                    <span style={{fontSize: '0.75rem', background: 'var(--accent-light)', color: 'var(--accent)', padding: '4px 8px', borderRadius: 4, fontWeight: 600}}>Weekly</span>
-                    <span style={{fontSize: '0.75rem', background: 'var(--bg-main)', color: 'var(--text-muted)', padding: '4px 8px', borderRadius: 4, fontWeight: 600}}>Monthly</span>
+                    <span style={{fontSize: '0.75rem', 
+                      background: 'var(--accent-light)', 
+                      color: 'var(--accent)', padding: '4px 8px', 
+                      borderRadius: 4, fontWeight: 600,
+                      cursor: 'pointer'}}>Weekly</span>
+
+                    <span style={{fontSize: '0.75rem', 
+                      background: 'var(--bg-main)', 
+                      color: 'var(--text-muted)', 
+                      padding: '4px 8px', borderRadius: 4, 
+                      fontWeight: 600, cursor: 'pointer'}}>Monthly</span>
                   </div>
                 </div>
                 <div style={{ height: 300, width: '100%' }}>
@@ -293,7 +334,15 @@ const Dashboard = ({ onSignOut }) => {
             <section className="card">
               <div className="card-title">
                 Recent Orders
-                <span style={{color: 'var(--accent)', fontSize: '0.85rem', cursor: 'pointer'}}>View All</span>
+                <span
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => handleMenuClick('orders')}
+                  onKeyPress={(e) => { if (e.key === 'Enter' || e.key === ' ') handleMenuClick('orders'); }}
+                  style={{color: 'var(--accent)', fontSize: '0.85rem', cursor: 'pointer', paddingLeft: '1.5rem'}}
+                >
+                  View All
+                </span>
               </div>
               <div className="table-container">
                 <table>
@@ -307,23 +356,59 @@ const Dashboard = ({ onSignOut }) => {
                     </tr>
                   </thead>
                   <tbody>
-                    {[
-                      { id: '#ORD-2841', name: 'James Miller', status: 'Pending', amount: '$142.00' },
-                      { id: '#ORD-2839', name: 'Thomas Shelby', status: 'Completed', amount: '$210.80' },
-                      { id: '#ORD-2838', name: 'Arthur Shelby', status: 'Completed', amount: '$85.00' },
-                      { id: '#ORD-2837', name: 'John Doe', status: 'Pending', amount: '$45.20' }
-                    ].map((order, i) => (
-                      <tr key={i}>
+                    {recentOrders.map((order, i) => (
+                      <tr key={order.id}> 
                         <td style={{fontWeight: 600}}>{order.id}</td>
                         <td>{order.name}</td>
                         <td>
-                          <span className={`status-badge ${order.status === 'Pending' ? 'status-pending' : 'status-completed'}`}>
+                          <span className={`status-badge ${order.status === 'Pending' ? 'status-pending' : order.status === 'Completed' ? 'status-completed' : 'status-processing'}`}>
                             {order.status}
                           </span>
                         </td>
                         <td style={{fontWeight: 600}}>{order.amount}</td>
-                        <td style={{textAlign: 'right'}}>
-                          <MoreVertical size={18} color="var(--text-muted)" style={{cursor: 'pointer'}} />
+                        <td style={{textAlign: 'right', position: 'relative'}}>
+                          <div style={{display: 'inline-block', position: 'relative'}} onClick={(e) => e.stopPropagation()}>
+                            <MoreVertical
+                              size={18}
+                              color="var(--text-muted)"
+                              style={{cursor: 'pointer'}}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                toggleOrderDropdown(order.id);
+                              }}
+                            />
+                            {activeDropdownOrder === order.id && (
+                              <div style={{
+                                position: 'absolute',
+                                right: 0,
+                                top: '100%',
+                                marginTop: 6,
+                                background: 'var(--bg-main)',
+                                border: '1px solid var(--border)',
+                                borderRadius: 6,
+                                boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                                zIndex: 20,
+                                padding: '0.25rem 0',
+                                minWidth: 140,
+                              }}>
+                                {['Pending', 'Completed', 'Processing'].map((status) => (
+                                  <div
+                                    key={status}
+                                    onClick={(e) => { e.stopPropagation(); updateOrderStatus(order.id, status); }}
+                                    style={{
+                                      padding: '0.45rem 0.8rem',
+                                      cursor: 'pointer',
+                                      color: 'var(--text-main)',
+                                      fontSize: '0.85rem',
+                                      whiteSpace: 'nowrap',
+                                    }}
+                                  >
+                                    {status}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -351,8 +436,11 @@ const Dashboard = ({ onSignOut }) => {
               <div className="card-title">
                 All Orders
                 <div style={{display: 'flex', gap: '1rem', alignItems: 'center'}}>
-                  <input type="text" placeholder="Search orders..." style={{padding: '0.5rem', border: '1px solid var(--border)', borderRadius: '6px'}} />
-                  <select style={{padding: '0.5rem', border: '1px solid var(--border)', borderRadius: '6px'}}>
+                  <input type="text" placeholder="Search orders..."
+                   style={{padding: '0.5rem', border: '1px solid var(--border)', borderRadius: '6px'}} />
+                  <select style={{padding: '0.5rem', 
+                    border: '1px solid var(--border)', borderRadius: '6px',
+                    cursor: 'pointer'}}>
                     <option>All Status</option>
                     <option>Pending</option>
                     <option>Completed</option>
@@ -374,14 +462,8 @@ const Dashboard = ({ onSignOut }) => {
                     </tr>
                   </thead>
                   <tbody>
-                    {[
-                      { id: '#ORD-2841', name: 'James Miller', items: 3, total: '$142.00', status: 'Pending', date: '2026-02-05' },
-                      { id: '#ORD-2839', name: 'Thomas Shelby', items: 5, total: '$210.80', status: 'Completed', date: '2026-02-04' },
-                      { id: '#ORD-2838', name: 'Arthur Shelby', items: 2, total: '$85.00', status: 'Completed', date: '2026-02-04' },
-                      { id: '#ORD-2837', name: 'John Doe', items: 1, total: '$45.20', status: 'Pending', date: '2026-02-03' },
-                      { id: '#ORD-2836', name: 'Sarah Wilson', items: 4, total: '$178.50', status: 'Processing', date: '2026-02-03' }
-                    ].map((order, i) => (
-                      <tr key={i}>
+                    {allOrders.map((order) => (
+                      <tr key={order.id}>
                         <td style={{fontWeight: 600}}>{order.id}</td>
                         <td>{order.name}</td>
                         <td>{order.items} items</td>
@@ -396,8 +478,49 @@ const Dashboard = ({ onSignOut }) => {
                           </span>
                         </td>
                         <td>{order.date}</td>
-                        <td style={{textAlign: 'right'}}>
-                          <MoreVertical size={18} color="var(--text-muted)" style={{cursor: 'pointer'}} />
+                        <td style={{textAlign: 'right', position: 'relative'}}>
+                          <div style={{display: 'inline-block', position: 'relative'}} onClick={(e) => e.stopPropagation()}>
+                            <MoreVertical
+                              size={18}
+                              color="var(--text-muted)"
+                              style={{cursor: 'pointer'}}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                toggleOrderDropdown(order.id);
+                              }}
+                            />
+                            {activeDropdownOrder === order.id && (
+                              <div style={{
+                                position: 'absolute',
+                                right: 0,
+                                top: '100%',
+                                marginTop: 6,
+                                background: 'var(--bg-main)',
+                                border: '1px solid var(--border)',
+                                borderRadius: 6,
+                                boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                                zIndex: 20,
+                                padding: '0.25rem 0',
+                                minWidth: 140,
+                              }}>
+                                {['Pending', 'Completed', 'Processing'].map((status) => (
+                                  <div
+                                    key={status}
+                                    onClick={(e) => { e.stopPropagation(); updateOrderStatus(order.id, status); }}
+                                    style={{
+                                      padding: '0.45rem 0.8rem',
+                                      cursor: 'pointer',
+                                      color: 'var(--text-main)',
+                                      fontSize: '0.85rem',
+                                      whiteSpace: 'nowrap',
+                                    }}
+                                  >
+                                    {status}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -426,7 +549,9 @@ const Dashboard = ({ onSignOut }) => {
                 Medicine Inventory
                 <div style={{display: 'flex', gap: '1rem', alignItems: 'center'}}>
                   <input type="text" placeholder="Search medicines..." style={{padding: '0.5rem', border: '1px solid var(--border)', borderRadius: '6px'}} />
-                  <select style={{padding: '0.5rem', border: '1px solid var(--border)', borderRadius: '6px'}}>
+                  <select style={{padding: '0.5rem',
+                     border: '1px solid var(--border)', borderRadius: '6px',
+                     cursor: 'pointer'}}>
                     <option>All Categories</option>
                     <option>Pain Relief</option>
                     <option>Antibiotics</option>
@@ -551,15 +676,15 @@ const Dashboard = ({ onSignOut }) => {
                 <div style={{padding: '1rem'}}>
                   <div style={{marginBottom: '1rem'}}>
                     <label style={{display: 'block', marginBottom: '0.5rem', fontWeight: 600}}>Pharmacy Name</label>
-                    <input type="text" defaultValue="GreenCross Pharmacy #402" style={{width: '100%', padding: '0.5rem', border: '1px solid var(--border)', borderRadius: '6px'}} />
+                    <input type="text" defaultValue="TheHoney Pharmacy " style={{width: '100%', padding: '0.5rem', border: '1px solid var(--border)', borderRadius: '6px'}} />
                   </div>
                   <div style={{marginBottom: '1rem'}}>
                     <label style={{display: 'block', marginBottom: '0.5rem', fontWeight: 600}}>Contact Email</label>
-                    <input type="email" defaultValue="contact@greencross.com" style={{width: '100%', padding: '0.5rem', border: '1px solid var(--border)', borderRadius: '6px'}} />
+                    <input type="email" defaultValue="contact@honey.com" style={{width: '100%', padding: '0.5rem', border: '1px solid var(--border)', borderRadius: '6px'}} />
                   </div>
                   <div style={{marginBottom: '1rem'}}>
                     <label style={{display: 'block', marginBottom: '0.5rem', fontWeight: 600}}>Phone Number</label>
-                    <input type="tel" defaultValue="+1 (555) 123-4567" style={{width: '100%', padding: '0.5rem', border: '1px solid var(--border)', borderRadius: '6px'}} />
+                    <input type="tel" defaultValue="+962 (79) 999-9999" style={{width: '100%', padding: '0.5rem', border: '1px solid var(--border)', borderRadius: '6px'}} />
                   </div>
                 </div>
               </div>
