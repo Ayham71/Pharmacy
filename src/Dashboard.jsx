@@ -79,6 +79,10 @@ const Dashboard = ({ onSignOut }) => {
     { id: '#ORD-2836', name: 'Sarah Wilson', items: 4, total: '$178.50', status: 'Processing', date: '2026-02-03' }
   ]);
 
+  const [statusFilter, setStatusFilter] = useState(null);
+
+  const filteredOrders = statusFilter ? allOrders.filter(order => order.status === statusFilter) : allOrders;
+
   const [activeDropdownOrder, setActiveDropdownOrder] = useState(null);
 
   const handleMenuClick = (menuId) => {
@@ -438,13 +442,13 @@ const Dashboard = ({ onSignOut }) => {
                 <div style={{display: 'flex', gap: '1rem', alignItems: 'center'}}>
                   <input type="text" placeholder="Search orders..."
                    style={{padding: '0.5rem', border: '1px solid var(--border)', borderRadius: '6px'}} />
-                  <select style={{padding: '0.5rem', 
+                  <select value={statusFilter || ''} onChange={(e) => setStatusFilter(e.target.value || null)} style={{padding: '0.5rem', 
                     border: '1px solid var(--border)', borderRadius: '6px',
                     cursor: 'pointer'}}>
-                    <option>All Status</option>
-                    <option>Pending</option>
-                    <option>Completed</option>
-                    <option>Cancelled</option>
+                    <option value="">All Status</option>
+                    <option value="Pending">Pending</option>
+                    <option value="Completed">Completed</option>
+                    <option value="Processing">Processing</option>
                   </select>
                 </div>
               </div>
@@ -462,18 +466,22 @@ const Dashboard = ({ onSignOut }) => {
                     </tr>
                   </thead>
                   <tbody>
-                    {allOrders.map((order) => (
+                    {filteredOrders.map((order) => (
                       <tr key={order.id}>
                         <td style={{fontWeight: 600}}>{order.id}</td>
                         <td>{order.name}</td>
                         <td>{order.items} items</td>
                         <td style={{fontWeight: 600}}>{order.total}</td>
                         <td>
-                          <span className={`status-badge ${
-                            order.status === 'Pending' ? 'status-pending' : 
-                            order.status === 'Completed' ? 'status-completed' : 
-                            'status-processing'
-                          }`}>
+                          <span 
+                            className={`status-badge ${
+                              order.status === 'Pending' ? 'status-pending' : 
+                              order.status === 'Completed' ? 'status-completed' : 
+                              'status-processing'
+                            }`}
+                            onClick={() => setStatusFilter(order.status === statusFilter ? null : order.status)}
+                            style={{cursor: 'pointer'}}
+                          >
                             {order.status}
                           </span>
                         </td>
