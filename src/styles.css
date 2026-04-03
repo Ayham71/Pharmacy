@@ -343,6 +343,7 @@ td {
 
 .status-pending { background: #fff7ed; color: #c2410c; }
 .status-completed { background: #fef3c7; color: #d4af37; }
+.status-processing { background: rgba(16, 185, 129, 0.1); color: #10b981; }
 
 /* Progress bars */
 .medicine-list {
