@@ -210,7 +210,6 @@ const Dashboard = ({ onSignOut }) => {
           <LogOut size={20} />
           <div>
             <div style={{fontWeight: 600}}>Sign Out</div>
-            <div style={{fontSize: '0.65rem', opacity: 0.7}}>TERMINATE SESSION</div>
           </div>
         </div>
       </aside>

@@ -261,7 +261,7 @@ body {
   justify-content: center;
 }
 
-.stat-icon.sales { background: #fef3c7; color: #d4af37; } /* Gold/Yellowish */
+.stat-icon.sales { background: #fef3c7; color: var(--warning); } /* Gold/Yellowish */
 .stat-icon.orders { background: #e0f2fe; color: #0369a1; } /* Blueish */
 .stat-icon.items { background: #f5f3ff; color: #6d28d9; } /* Purplish */
 .stat-icon.delivery { background: #fff7ed; color: #c2410c; } /* Orangi-ish */
@@ -284,7 +284,7 @@ body {
   border-radius: 4px;
 }
 
-.positive { color: #d4af37; background: #fef3c7; }
+.positive { color: var(--warning); background: #fef3c7; }
 
 /* Charts and Tables */
 .content-row {
@@ -342,7 +342,7 @@ td {
 }
 
 .status-pending { background: #fff7ed; color: #c2410c; }
-.status-completed { background: #fef3c7; color: #d4af37; }
+.status-completed { background: #fef3c7; color: var(--warning); }
 .status-processing { background: rgba(16, 185, 129, 0.1); color: #10b981; }
 
 /* Progress bars */
