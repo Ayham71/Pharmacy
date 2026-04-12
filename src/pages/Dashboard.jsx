@@ -133,6 +133,11 @@ const Dashboard = ({ userData, onSignOut }) => {
     setActiveMenu(menuId);
   };
 
+  // Navigation handler for DashboardHome to navigate to other pages
+  const handleNavigate = (menuId) => {
+    setActiveMenu(menuId);
+  };
+
   if (loading && !pharmacyProfile) {
     return (
       <div style={{
@@ -161,7 +166,7 @@ const Dashboard = ({ userData, onSignOut }) => {
       <main className="main-content">
         <Header pharmacyName={pharmacyProfile?.name || 'Your Pharmacy'} />
 
-        {activeMenu === 'dashboard' && <DashboardHome />}
+        {activeMenu === 'dashboard' && <DashboardHome onNavigate={handleNavigate} />}
         {activeMenu === 'orders' && <Orders />}
         {activeMenu === 'catalog' && <MedicineCatalog />}
         {activeMenu === 'globalCatalog' && <GlobalCatalog />}

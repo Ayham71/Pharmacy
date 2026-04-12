@@ -8,61 +8,7 @@ const Orders = () => {
   const [activeDropdownOrder, setActiveDropdownOrder] = useState(null);
   const [expandedOrder, setExpandedOrder] = useState(null);
 
-  const [allOrders, setAllOrders] = useState([
-    { 
-      id: '#ORD-2841', 
-      name: 'James Miller', 
-      items: [
-        { name: 'Panadol', quantity: 2, price: '$10.00' },
-        { name: 'Aspirin', quantity: 1, price: '$5.00' }
-      ],
-      total: '$142.00', 
-      status: 'Pending', 
-      date: '2024-02-05T10:30:00' 
-    },
-    { 
-      id: '#ORD-2839', 
-      name: 'Thomas Shelby', 
-      items: [
-        { name: 'Vitamin D3', quantity: 3, price: '$38.97' },
-        { name: 'Ibuprofen', quantity: 2, price: '$9.98' }
-      ],
-      total: '$210.80', 
-      status: 'Completed', 
-      date: '2024-02-04T14:20:00' 
-    },
-    { 
-      id: '#ORD-2838', 
-      name: 'Arthur Shelby', 
-      items: [
-        { name: 'Amoxicillin', quantity: 1, price: '$15.99' }
-      ],
-      total: '$85.00', 
-      status: 'Completed', 
-      date: '2024-02-04T09:15:00' 
-    },
-    { 
-      id: '#ORD-2837', 
-      name: 'John Doe', 
-      items: [
-        { name: 'Panadol', quantity: 1, price: '$5.00' }
-      ],
-      total: '$45.20', 
-      status: 'Pending', 
-      date: '2024-02-03T16:45:00' 
-    },
-    { 
-      id: '#ORD-2836', 
-      name: 'Sarah Wilson', 
-      items: [
-        { name: 'Vitamin C', quantity: 2, price: '$20.00' },
-        { name: 'Paracetamol', quantity: 3, price: '$15.00' }
-      ],
-      total: '$178.50', 
-      status: 'Processing', 
-      date: '2024-02-03T11:00:00' 
-    }
-  ]);
+  const [allOrders, setAllOrders] = useState([]);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -71,6 +17,86 @@ const Orders = () => {
 
     return () => clearInterval(timer);
   }, []);
+
+  // Load orders from localStorage
+  useEffect(() => {
+    loadOrders();
+  }, []);
+
+  const loadOrders = () => {
+    const saved = localStorage.getItem('allOrders');
+    if (saved) {
+      try {
+        const orders = JSON.parse(saved);
+        setAllOrders(orders);
+      } catch (e) {
+        console.error('Failed to load orders:', e);
+        setDefaultOrders();
+      }
+    } else {
+      setDefaultOrders();
+    }
+  };
+
+  const setDefaultOrders = () => {
+    const defaultOrders = [
+      { 
+        id: '#ORD-2841', 
+        name: 'James Miller', 
+        items: [
+          { name: 'Panadol', quantity: 2, price: '$10.00' },
+          { name: 'Aspirin', quantity: 1, price: '$5.00' }
+        ],
+        total: '$142.00', 
+        status: 'Pending', 
+        date: '2024-02-05T10:30:00' 
+      },
+      { 
+        id: '#ORD-2839', 
+        name: 'Thomas Shelby', 
+        items: [
+          { name: 'Vitamin D3', quantity: 3, price: '$38.97' },
+          { name: 'Ibuprofen', quantity: 2, price: '$9.98' }
+        ],
+        total: '$210.80', 
+        status: 'Completed', 
+        date: '2024-02-04T14:20:00' 
+      },
+      { 
+        id: '#ORD-2838', 
+        name: 'Arthur Shelby', 
+        items: [
+          { name: 'Amoxicillin', quantity: 1, price: '$15.99' }
+        ],
+        total: '$85.00', 
+        status: 'Completed', 
+        date: '2024-02-04T09:15:00' 
+      },
+      { 
+        id: '#ORD-2837', 
+        name: 'John Doe', 
+        items: [
+          { name: 'Panadol', quantity: 1, price: '$5.00' }
+        ],
+        total: '$45.20', 
+        status: 'Pending', 
+        date: '2024-02-03T16:45:00' 
+      },
+      { 
+        id: '#ORD-2836', 
+        name: 'Sarah Wilson', 
+        items: [
+          { name: 'Vitamin C', quantity: 2, price: '$20.00' },
+          { name: 'Paracetamol', quantity: 3, price: '$15.00' }
+        ],
+        total: '$178.50', 
+        status: 'Processing', 
+        date: '2024-02-03T11:00:00' 
+      }
+    ];
+    setAllOrders(defaultOrders);
+    localStorage.setItem('allOrders', JSON.stringify(defaultOrders));
+  };
 
   useEffect(() => {
     const handleClickOutside = () => setActiveDropdownOrder(null);
@@ -91,9 +117,11 @@ const Orders = () => {
   };
 
   const updateOrderStatus = (orderId, newStatus) => {
-    setAllOrders(prev => prev.map(order => 
+    const updatedOrders = allOrders.map(order => 
       order.id === orderId ? {...order, status: newStatus} : order
-    ));
+    );
+    setAllOrders(updatedOrders);
+    localStorage.setItem('allOrders', JSON.stringify(updatedOrders));
     setActiveDropdownOrder(null);
   };
 
@@ -178,7 +206,7 @@ const Orders = () => {
                       </span>
                     </td>
                     <td>{order.name}</td>
-                    <td>{order.items.length} items</td>
+                    <td>{order.items?.length || 0} items</td>
                     <td style={{fontWeight: 600}}>{order.total}</td>
                     <td>
                       <span 
@@ -237,7 +265,7 @@ const Orders = () => {
                       </div>
                     </td>
                   </tr>
-                  {expandedOrder === order.id && (
+                  {expandedOrder === order.id && order.items && (
                     <tr>
                       <td colSpan="7" style={{backgroundColor: 'var(--bg-main)', padding: '1rem'}}>
                         <div style={{marginLeft: '2rem'}}>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { TrendingUp, Package, Layers, MoreVertical, Pill } from 'lucide-react';
+import { TrendingUp, Package, Layers, Pill } from 'lucide-react';
 import StatCard from './StatCard';
 
 const MedicineProgress = ({ name, progress, sales }) => (
@@ -19,15 +19,11 @@ const MedicineProgress = ({ name, progress, sales }) => (
   </div>
 );
 
-const DashboardHome = () => {
+const DashboardHome = ({ onNavigate }) => {
   const [currentTime, setCurrentTime] = useState(new Date());
-  const [recentOrders, setRecentOrders] = useState([
-    { id: '#ORD-2841', name: 'James Miller', status: 'Pending', amount: '$142.00', date: '2024-02-05T10:30:00' },
-    { id: '#ORD-2839', name: 'Thomas Shelby', status: 'Completed', amount: '$210.80', date: '2024-02-04T14:20:00' },
-    { id: '#ORD-2838', name: 'Arthur Shelby', status: 'Completed', amount: '$85.00', date: '2024-02-04T09:15:00' },
-    { id: '#ORD-2837', name: 'John Doe', status: 'Pending', amount: '$45.20', date: '2024-02-03T16:45:00' },
-    { id: '#ORD-2836', name: 'Sarah Wilson', status: 'Processing', amount: '$178.50', date: '2024-02-03T11:00:00' }
-  ]);
+  const [recentOrders, setRecentOrders] = useState([]);
+  const [totalOrders, setTotalOrders] = useState(0);
+  const [totalMedicines, setTotalMedicines] = useState(0);
 
   const [topMedicines] = useState([
     { name: 'Panadol', progress: 85, sales: 342 },
@@ -37,8 +33,6 @@ const DashboardHome = () => {
     { name: 'Amoxicillin', progress: 30, sales: 89 }
   ]);
 
-  const [activeDropdownOrder, setActiveDropdownOrder] = useState(null);
-
   useEffect(() => {
     const timer = setInterval(() => {
       setCurrentTime(new Date());
@@ -47,11 +41,61 @@ const DashboardHome = () => {
     return () => clearInterval(timer);
   }, []);
 
+  // Load orders and count medicines
   useEffect(() => {
-    const handleClickOutside = () => setActiveDropdownOrder(null);
-    window.addEventListener('click', handleClickOutside);
-    return () => window.removeEventListener('click', handleClickOutside);
+    loadOrders();
+    countMedicines();
   }, []);
+
+  const loadOrders = () => {
+    // Load from localStorage or use default data
+    const savedOrders = localStorage.getItem('allOrders');
+    
+    if (savedOrders) {
+      try {
+        const orders = JSON.parse(savedOrders);
+        setRecentOrders(orders);
+        setTotalOrders(orders.length);
+      } catch (e) {
+        console.error('Failed to load orders:', e);
+        setDefaultOrders();
+      }
+    } else {
+      setDefaultOrders();
+    }
+  };
+
+  const setDefaultOrders = () => {
+    const defaultOrders = [
+      { id: '#ORD-2841', name: 'James Miller', status: 'Pending', amount: '$142.00', date: '2024-02-05T10:30:00' },
+      { id: '#ORD-2839', name: 'Thomas Shelby', status: 'Completed', amount: '$210.80', date: '2024-02-04T14:20:00' },
+      { id: '#ORD-2838', name: 'Arthur Shelby', status: 'Completed', amount: '$85.00', date: '2024-02-04T09:15:00' },
+      { id: '#ORD-2837', name: 'John Doe', status: 'Pending', amount: '$45.20', date: '2024-02-03T16:45:00' },
+      { id: '#ORD-2836', name: 'Sarah Wilson', status: 'Processing', amount: '$178.50', date: '2024-02-03T11:00:00' }
+    ];
+    setRecentOrders(defaultOrders);
+    setTotalOrders(defaultOrders.length);
+    localStorage.setItem('allOrders', JSON.stringify(defaultOrders));
+  };
+
+  const countMedicines = () => {
+    const savedMedicines = localStorage.getItem('pharmacyMedicines');
+    
+    if (savedMedicines) {
+      try {
+        const medicines = JSON.parse(savedMedicines);
+        const count = medicines.reduce((total, category) => {
+          return total + category.medicines.length;
+        }, 0);
+        setTotalMedicines(count);
+      } catch (e) {
+        console.error('Failed to count medicines:', e);
+        setTotalMedicines(0);
+      }
+    } else {
+      setTotalMedicines(0);
+    }
+  };
 
   const formatDateTime = (date) => {
     const options = { 
@@ -63,17 +107,6 @@ const DashboardHome = () => {
       hour12: true 
     };
     return date.toLocaleDateString('en-US', options).replace(',', ' at');
-  };
-
-  const updateOrderStatus = (orderId, newStatus) => {
-    setRecentOrders(prev => prev.map(order => 
-      order.id === orderId ? {...order, status: newStatus} : order
-    ));
-    setActiveDropdownOrder(null);
-  };
-
-  const toggleOrderDropdown = (orderId) => {
-    setActiveDropdownOrder(prev => (prev === orderId ? null : orderId));
   };
 
   // Sort orders by date (newest first)
@@ -98,14 +131,14 @@ const DashboardHome = () => {
           colorClass="sales"
         />
         <StatCard 
-          title="New Orders" 
-          value="24" 
+          title="Orders" 
+          value={totalOrders.toString()} 
           icon={Package} 
           colorClass="orders"
         />
         <StatCard 
-          title="Active Items" 
-          value="1,842"  
+          title="Items" 
+          value={totalMedicines.toString()}  
           icon={Layers} 
           colorClass="items"
         />
@@ -117,6 +150,26 @@ const DashboardHome = () => {
         <section className="card">
           <div className="card-title">
             Recent Orders
+            <span
+              role="button"
+              tabIndex={0}
+              onClick={() => onNavigate && onNavigate('orders')}
+              onKeyPress={(e) => { 
+                if (e.key === 'Enter' || e.key === ' ') {
+                  onNavigate && onNavigate('orders');
+                }
+              }}
+              style={{
+                color: 'var(--accent)', 
+                fontSize: '0.85rem', 
+                cursor: 'pointer', 
+                fontWeight: 500,
+                textDecoration: 'underline',
+                marginLeft: '1.5rem'
+              }}
+            >
+              View All Orders →
+            </span>
           </div>
           <div className="table-container">
             <table>
@@ -127,12 +180,17 @@ const DashboardHome = () => {
                   <th>Date</th>
                   <th>Status</th>
                   <th>Amount</th>
-                  <th style={{textAlign: 'right'}}>Action</th>
                 </tr>
               </thead>
               <tbody>
                 {sortedOrders.slice(0, 5).map((order) => (
-                  <tr key={order.id}> 
+                  <tr 
+                    key={order.id}
+                    onClick={() => onNavigate && onNavigate('orders')}
+                    style={{ cursor: 'pointer' }}
+                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--bg-main)'}
+                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                  > 
                     <td style={{fontWeight: 600}}>{order.id}</td>
                     <td>{order.name}</td>
                     <td style={{fontSize: '0.85rem', color: 'var(--text-muted)'}}>
@@ -148,50 +206,6 @@ const DashboardHome = () => {
                       </span>
                     </td>
                     <td style={{fontWeight: 600}}>{order.amount}</td>
-                    <td style={{textAlign: 'right', position: 'relative'}}>
-                      <div style={{display: 'inline-block', position: 'relative'}} onClick={(e) => e.stopPropagation()}>
-                        <MoreVertical
-                          size={18}
-                          color="var(--text-muted)"
-                          style={{cursor: 'pointer'}}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            toggleOrderDropdown(order.id);
-                          }}
-                        />
-                        {activeDropdownOrder === order.id && (
-                          <div style={{
-                            position: 'absolute',
-                            right: 0,
-                            top: '100%',
-                            marginTop: 6,
-                            background: 'var(--bg-main)',
-                            border: '1px solid var(--border)',
-                            borderRadius: 6,
-                            boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-                            zIndex: 20,
-                            padding: '0.25rem 0',
-                            minWidth: 140,
-                          }}>
-                            {['Pending', 'Completed', 'Processing'].map((status) => (
-                              <div
-                                key={status}
-                                onClick={(e) => { e.stopPropagation(); updateOrderStatus(order.id, status); }}
-                                style={{
-                                  padding: '0.45rem 0.8rem',
-                                  cursor: 'pointer',
-                                  color: 'var(--text-main)',
-                                  fontSize: '0.85rem',
-                                  whiteSpace: 'nowrap',
-                                }}
-                              >
-                                {status}
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -203,7 +217,8 @@ const DashboardHome = () => {
         <section className="card">
           <div className="card-title">
             Top 5 Medicines
-            <span style={{fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 400}}><br />              Best sellers this week
+            <span style={{fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 400}}>
+              <br />Best sellers this week
             </span>
           </div>
           <div className="medicine-list">
