@@ -29,6 +29,25 @@ body {
   min-height: 100vh;
 }
 
+.header-welcome {
+  flex: 1;
+}
+
+.header-welcome h1 {
+  color: var(--text-main);
+  margin: 0;
+}
+
+/*Header */
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--border);
+}
+
 /* Sidebar Styles */
 .sidebar {
   width: var(--sidebar-width);
@@ -193,6 +212,125 @@ body {
   gap: 0.5rem;
   font-weight: 600;
   font-size: 0.9rem;
+}
+
+/* Content Row for Dashboard */
+.content-row {
+  display: grid;
+  grid-template-columns: 1.5fr 1fr;
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+/* Medicine List Styles */
+.medicine-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.medicine-item {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.med-icon {
+  background-color: var(--bg-main);
+  padding: 0.75rem;
+  border-radius: 10px;
+  color: var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.med-info {
+  flex: 1;
+}
+
+.med-name-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.progress-bar {
+  height: 8px;
+  background-color: var(--bg-main);
+  border-radius: 4px;
+  overflow: hidden;
+  position: relative;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent) 0%, #f0c14b 100%);
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+/* Responsive adjustments */
+@media (max-width: 1200px) {
+  .content-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Table responsive improvements */
+.table-container {
+  overflow-x: auto;
+  margin: 0 -0.5rem;
+  padding: 0 0.5rem;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th {
+  text-align: left;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  font-weight: 600;
+  padding: 1rem 0.5rem;
+  border-bottom: 1px solid var(--border);
+}
+
+td {
+  padding: 1rem 0.5rem;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.9rem;
+}
+
+/* Status badges */
+.status-badge {
+  padding: 0.25rem 0.75rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  display: inline-block;
+}
+
+.status-pending { 
+  background: #fff7ed; 
+  color: #c2410c; 
+}
+
+.status-completed { 
+  background: #fef3c7; 
+  color: var(--warning); 
+}
+
+.status-processing { 
+  background: rgba(16, 185, 129, 0.1); 
+  color: #10b981; 
 }
 
 /* Dashboard Overview */

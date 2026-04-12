@@ -4,10 +4,51 @@ const Login = ({ onLogin }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    onLogin();
+    setError('');
+    setLoading(true);
+
+    try {
+      const response = await fetch('http://165.22.91.187:5000/api/Auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: email,
+          password: password,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        // Store the token if provided
+        if (data.token) {
+          localStorage.setItem('authToken', data.token);
+        }
+        
+        // Store user data if needed
+        if (data.user) {
+          localStorage.setItem('userData', JSON.stringify(data.user));
+        }
+
+        // Call the onLogin callback to change app state
+        onLogin(data); // This should trigger the parent component to show the dashboard
+      } else {
+        // Handle error response
+        setError(data.message || 'Login failed. Please check your credentials.');
+      }
+    } catch (err) {
+      setError('Network error. Please try again later.');
+      console.error('Login error:', err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const togglePassword = () => {
@@ -16,8 +57,6 @@ const Login = ({ onLogin }) => {
 
   return (
     <div className="page-wrapper">
-      
-
       {/* Decorative blobs */}
       <div className="glow-blob glow-blob-1"></div>
       <div className="glow-blob glow-blob-2"></div>
@@ -34,6 +73,21 @@ const Login = ({ onLogin }) => {
         {/* Title */}
         <h1 className="card-title">Pharmacy Portal</h1>
         <p className="card-subtitle">Access your professional dashboard</p>
+
+        {/* Error Message */}
+        {error && (
+          <div className="error-message" style={{
+            backgroundColor: '#fee',
+            color: '#c33',
+            padding: '10px',
+            borderRadius: '8px',
+            marginBottom: '15px',
+            fontSize: '14px',
+            textAlign: 'center'
+          }}>
+            {error}
+          </div>
+        )}
 
         {/* Email Field */}
         <div className="form-group">
@@ -52,7 +106,9 @@ const Login = ({ onLogin }) => {
               className="text-input"
               placeholder="pharmacist@system.com"
               value={email}
-              onChange={function (e) { setEmail(e.target.value); }}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              disabled={loading}
             />
           </div>
         </div>
@@ -74,12 +130,15 @@ const Login = ({ onLogin }) => {
               className="text-input"
               placeholder="••••••••••••"
               value={password}
-              onChange={function (e) { setPassword(e.target.value); }}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              disabled={loading}
             />
             <button
               type="button"
               className="toggle-password"
               onClick={togglePassword}
+              disabled={loading}
             >
               {showPassword ? (
                 <svg viewBox="0 0 24 24">
@@ -99,12 +158,14 @@ const Login = ({ onLogin }) => {
         </div>
 
         {/* Login Button */}
-        <button type="submit" className="login-button">
-          Login to Dashboard
-          <svg viewBox="0 0 24 24">
-            <line x1="5" y1="12" x2="19" y2="12" />
-            <polyline points="12 5 19 12 12 19" />
-          </svg>
+        <button type="submit" className="login-button" disabled={loading}>
+          {loading ? 'Logging in...' : 'Login to Dashboard'}
+          {!loading && (
+            <svg viewBox="0 0 24 24">
+              <line x1="5" y1="12" x2="19" y2="12" />
+              <polyline points="12 5 19 12 12 19" />
+            </svg>
+          )}
         </button>
 
         {/* SSL Badge */}
@@ -115,8 +176,6 @@ const Login = ({ onLogin }) => {
           <span className="ssl-text">Secure SSL Encryption Active</span>
         </div>
       </form>
-
-      
     </div>
   );
 }
