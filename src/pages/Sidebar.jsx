@@ -3,12 +3,21 @@ import {
   LayoutDashboard, 
   ShoppingBag, 
   Database, 
+  Globe,
   BarChart3, 
   Settings, 
   LogOut
 } from 'lucide-react';
 
 const Sidebar = ({ activeMenu, onMenuClick, onSignOut, isPharmacyOpen, onToggleSwitch }) => {
+
+  const handleSignOutClick = (e) => {
+    e.preventDefault();
+    if (window.confirm('Are you sure you want to sign out?')) {
+      onSignOut();
+    }
+  };
+
   return (
     <aside className="sidebar">
       <div className="logo-section">
@@ -82,6 +91,14 @@ const Sidebar = ({ activeMenu, onMenuClick, onSignOut, isPharmacyOpen, onToggleS
         >
           <Database size={20} />
           Medicine Catalog
+        </a>
+        <a 
+          href="#" 
+          className={`nav-item ${activeMenu === 'globalCatalog' ? 'active' : ''}`} 
+          onClick={(e) => { e.preventDefault(); onMenuClick('globalCatalog'); }}
+        >
+          <Globe size={20} />
+          Global Catalog
         </a>
         <a 
           href="#" 
