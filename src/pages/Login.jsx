@@ -9,6 +9,18 @@ const Login = ({ onLogin }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    // Validation checks
+    if (!email.trim()) {
+      setError('Please enter your email or username');
+      return;
+    }
+
+    if (!password.trim()) {
+      setError('Please enter your password');
+      return;
+    }
+
     setError('');
     setLoading(true);
 
@@ -25,26 +37,47 @@ const Login = ({ onLogin }) => {
       });
 
       const data = await response.json();
+      console.log('Login response data:', data);
 
-      if (response.ok) {
-        // Store the token if provided
-        if (data.token) {
-          localStorage.setItem('authToken', data.token);
-        }
-        
-        // Store user data if needed
-        if (data.user) {
-          localStorage.setItem('userData', JSON.stringify(data.user));
-        }
-
-        // Call the onLogin callback to change app state
-        onLogin(data); // This should trigger the parent component to show the dashboard
-      } else {
-        // Handle error response
-        setError(data.message || 'Login failed. Please check your credentials.');
+      if (!response.ok) {
+        setError(data.message || 'Login failed. Please try again.');
+        setLoading(false);
+        return;
       }
+
+      if (!data.token) {
+        setError('No token received from server');
+        setLoading(false);
+        return;
+      }
+
+      // Check if user role is Pharmacy
+      if (data.role !== 'Pharmacy') {
+        setError('You do not have pharmacy privileges. Please contact your administrator.');
+        setLoading(false);
+        return;
+      }
+
+      // Store token and ALL user info in localStorage
+      localStorage.setItem('authToken', data.token);
+      localStorage.setItem('userRole', data.role);
+      localStorage.setItem('userEmail', data.email || email);
+
+      // Save userId if returned
+      if (data.id || data.userId || data.pharmacyId || data.Id) {
+        localStorage.setItem('userId', data.id || data.userId || data.pharmacyId || data.Id);
+      }
+
+      // Save username if returned
+      if (data.username || data.userName || data.Username) {
+        localStorage.setItem('userUsername', data.username || data.userName || data.Username);
+      }
+
+      // Call the onLogin callback to change app state
+      onLogin(data);
+
     } catch (err) {
-      setError('Network error. Please try again later.');
+      setError('Connection error. Please check your network and try again.');
       console.error('Login error:', err);
     } finally {
       setLoading(false);
@@ -76,15 +109,7 @@ const Login = ({ onLogin }) => {
 
         {/* Error Message */}
         {error && (
-          <div className="error-message" style={{
-            backgroundColor: '#fee',
-            color: '#c33',
-            padding: '10px',
-            borderRadius: '8px',
-            marginBottom: '15px',
-            fontSize: '14px',
-            textAlign: 'center'
-          }}>
+          <div className="error-message">
             {error}
           </div>
         )}
@@ -92,7 +117,9 @@ const Login = ({ onLogin }) => {
         {/* Email Field */}
         <div className="form-group">
           <div className="form-label-row">
-            <label className="form-label" style={{ fontSize: '12px' }}>EMAIL OR USERNAME</label>
+            <label className="form-label" style={{ fontSize: '12px' }}>
+              EMAIL OR USERNAME
+            </label>
           </div>
           <div className="input-wrapper">
             <span className="input-icon">
@@ -107,7 +134,6 @@ const Login = ({ onLogin }) => {
               placeholder="pharmacist@system.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              required
               disabled={loading}
             />
           </div>
@@ -116,7 +142,9 @@ const Login = ({ onLogin }) => {
         {/* Password Field */}
         <div className="form-group">
           <div className="form-label-row">
-            <label className="form-label" style={{ fontSize: '12px' }}>PASSWORD</label>
+            <label className="form-label" style={{ fontSize: '12px' }}>
+              PASSWORD
+            </label>
           </div>
           <div className="input-wrapper">
             <span className="input-icon">
@@ -131,7 +159,6 @@ const Login = ({ onLogin }) => {
               placeholder="••••••••••••"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              required
               disabled={loading}
             />
             <button
@@ -159,12 +186,29 @@ const Login = ({ onLogin }) => {
 
         {/* Login Button */}
         <button type="submit" className="login-button" disabled={loading}>
-          {loading ? 'Logging in...' : 'Login to Dashboard'}
-          {!loading && (
-            <svg viewBox="0 0 24 24">
-              <line x1="5" y1="12" x2="19" y2="12" />
-              <polyline points="12 5 19 12 12 19" />
-            </svg>
+          {loading ? (
+            <>
+              <span>Logging in...</span>
+              <svg viewBox="0 0 24 24" style={{ animation: 'spin 1s linear infinite' }}>
+                <circle
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeDasharray="15.7 47.1"
+                />
+              </svg>
+            </>
+          ) : (
+            <>
+              Login to Dashboard
+              <svg viewBox="0 0 24 24">
+                <line x1="5" y1="12" x2="19" y2="12" />
+                <polyline points="12 5 19 12 12 19" />
+              </svg>
+            </>
           )}
         </button>
 
@@ -178,6 +222,6 @@ const Login = ({ onLogin }) => {
       </form>
     </div>
   );
-}
+};
 
 export default Login;

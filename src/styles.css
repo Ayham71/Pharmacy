@@ -527,3 +527,17 @@ td {
   background-color: var(--accent);
   border-radius: 4px;
 }
+
+/* Error Message */
+.error-message{
+  padding: 12px 16px;
+  margin-bottom: 16px;
+  background-color: var(--white);
+  border-left: 4px solid var(--danger);
+  border-radius: 4px;
+  color: var(--danger);
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
