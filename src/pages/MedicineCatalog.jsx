@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Pill, Trash2, Loader, AlertCircle } from 'lucide-react';
+import { Pill, Trash2, Loader, AlertCircle, Plus, Minus } from 'lucide-react';
 
 const MedicineCatalog = () => {
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -9,6 +9,7 @@ const MedicineCatalog = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [actionLoading, setActionLoading] = useState({});
+  const [quantityLoading, setQuantityLoading] = useState({});
 
   const API_BASE_URL = 'http://165.22.91.187:5000/api';
   const IMAGE_BASE_URL = 'http://165.22.91.187:5000';
@@ -39,15 +40,10 @@ const MedicineCatalog = () => {
 
   const getCategoryIcon = (categoryName) => {
     const iconMap = {
-      'pain relief': '💊',
-      'pain': '💊',
-      'antibiotics': '💉',
-      'antibiotic': '💉',
-      'vitamins': '💪',
-      'vitamin': '💪',
-      'supplements': '💪',
-      'cold': '🤧',
-      'flu': '🤧',
+      'pain relief': '💊', 'pain': '💊',
+      'antibiotics': '💉', 'antibiotic': '💉',
+      'vitamins': '💪', 'vitamin': '💪', 'supplements': '💪',
+      'cold': '🤧', 'flu': '🤧',
       'digestive': '🍼',
       'allergy': '🤧',
       'skin': '🧴',
@@ -73,12 +69,8 @@ const MedicineCatalog = () => {
 
   const formatDateTime = (date) => {
     const options = {
-      month: 'short',
-      day: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: true
+      month: 'short', day: '2-digit', year: 'numeric',
+      hour: '2-digit', minute: '2-digit', hour12: true
     };
     return date.toLocaleDateString('en-US', options).replace(',', ' at');
   };
@@ -117,6 +109,13 @@ const MedicineCatalog = () => {
         description: item.activeIngredient || item.description || '',
         price: formatPrice(item.price || 0),
         inStock: item.isActive !== undefined ? item.isActive : true,
+        quantity: item.quantity ?? item.stock ?? item.stockCount ?? 0,
+        requiresPrescription:
+          item.requiresPrescription ??
+          item.RequiresPrescription ??
+          item.requires_prescription ??
+          item.isPrescription ??
+          false,
         image: getImageUrl(item.image || item.imageUrl),
         originalData: item
       });
@@ -131,78 +130,73 @@ const MedicineCatalog = () => {
 
     let categories = [];
 
-    // Case 1: { pharmacyId, pharmacyName, categories: [...] }
     if (apiData && apiData.categories && Array.isArray(apiData.categories)) {
       categories = apiData.categories;
-      console.log('Case 1 – nested categories array, length:', categories.length);
-    }
-    // Case 2: array of items
-    else if (Array.isArray(apiData)) {
-      // Sub-case: first item has categories
+    } else if (Array.isArray(apiData)) {
       if (apiData.length > 0 && apiData[0] && apiData[0].categories) {
         categories = apiData[0].categories;
-        console.log('Case 2a – categories inside first array item, length:', categories.length);
       } else {
-        // Sub-case: flat medication array
-        console.log('Case 2b – flat medication array, length:', apiData.length);
         return transformFlatMedications(apiData);
       }
-    }
-    // Case 3: { data: [...] }
-    else if (apiData && apiData.data && Array.isArray(apiData.data)) {
+    } else if (apiData && apiData.data && Array.isArray(apiData.data)) {
       if (apiData.data.length > 0 && apiData.data[0].categories) {
         categories = apiData.data[0].categories;
-        console.log('Case 3a – categories inside data[0]');
       } else {
-        console.log('Case 3b – flat data array');
         return transformFlatMedications(apiData.data);
       }
-    }
-    // Case 4: { inventory: [...] }
-    else if (apiData && apiData.inventory && Array.isArray(apiData.inventory)) {
-      console.log('Case 4 – inventory array');
+    } else if (apiData && apiData.inventory && Array.isArray(apiData.inventory)) {
       return transformFlatMedications(apiData.inventory);
-    }
-    else {
-      console.warn('Unknown API structure – nothing to display', apiData);
+    } else {
+      console.warn('Unknown API structure', apiData);
       return [];
     }
 
-    if (categories.length === 0) {
-      console.log('Categories array is empty');
-      return [];
-    }
+    if (categories.length === 0) return [];
 
-    // Map each category → its medications
     const result = categories
       .map((cat) => {
-        const categoryId   = cat.id       || cat.categoryId   || cat.CategoryId;
+        const categoryId   = cat.id || cat.categoryId || cat.CategoryId;
         const categoryName = cat.categoryName || cat.name || cat.CategoryName || 'Uncategorized';
-        const medications  = cat.medications  || cat.medicines  || cat.Medications || [];
-
-        console.log(`Category "${categoryName}" (id ${categoryId}) – ${medications.length} meds`);
+        const medications  = cat.medications || cat.medicines || cat.Medications || [];
 
         const transformedMedicines = medications.map((med) => {
-          const medId    = med.id           || med.medicationId  || med.medicineId || med._id;
-          const medName  = med.medicationName || med.name        || med.medicineName || 'Unnamed Medicine';
+          const medId    = med.id || med.medicationId || med.medicineId || med._id;
+          const medName  = med.medicationName || med.name || med.medicineName || 'Unnamed Medicine';
           const medDesc  = med.activeIngredient || med.description || med.details || '';
-          const medPrice = med.price        || med.cost          || 0;
+          const medPrice = med.price || med.cost || 0;
           const medInStock =
             med.isActive    !== undefined ? med.isActive :
             med.inStock     !== undefined ? med.inStock  :
             med.isAvailable !== undefined ? med.isAvailable : true;
           const medImage = med.image || med.imageUrl || med.imagePath || null;
 
-          console.log(`  ✔ ${medName} (id ${medId}) price=${medPrice} active=${medInStock}`);
+          // ── Quantity ──────────────────────────────────────────────────────
+          const medQuantity =
+            med.quantity    !== undefined ? med.quantity    :
+            med.stock       !== undefined ? med.stock       :
+            med.stockCount  !== undefined ? med.stockCount  :
+            med.Quantity    !== undefined ? med.Quantity    : 0;
+
+          // ── Requires Prescription (from central/global catalog data) ──────
+          const medRx =
+            med.requiresPrescription  ??
+            med.RequiresPrescription  ??
+            med.requires_prescription ??
+            med.centralMedication?.requiresPrescription ??
+            med.medication?.requiresPrescription ??
+            med.isPrescription ??
+            false;
 
           return {
-            id:           medId,
-            name:         medName,
-            description:  medDesc,
-            price:        formatPrice(medPrice),
-            inStock:      medInStock,
-            image:        getImageUrl(medImage),
-            originalData: med
+            id:                   medId,
+            name:                 medName,
+            description:          medDesc,
+            price:                formatPrice(medPrice),
+            inStock:              medInStock,
+            quantity:             Number(medQuantity),
+            requiresPrescription: Boolean(medRx),
+            image:                getImageUrl(medImage),
+            originalData:         med
           };
         });
 
@@ -215,7 +209,6 @@ const MedicineCatalog = () => {
       })
       .filter((cat) => cat.medicines.length > 0);
 
-    console.log('Transformed result:', result);
     return result;
   };
 
@@ -223,7 +216,6 @@ const MedicineCatalog = () => {
   const fetchInventory = async () => {
     setLoading(true);
     setError(null);
-
     try {
       const token = getAuthToken();
       if (!token) throw new Error('Authentication required. Please log in.');
@@ -237,20 +229,15 @@ const MedicineCatalog = () => {
       if (!response.ok)           throw new Error(`Failed to fetch inventory: ${response.status}`);
 
       const data = await response.json();
-      console.log('=== RAW INVENTORY RESPONSE ===');
-      console.log(JSON.stringify(data, null, 2));
+      console.log('=== RAW INVENTORY RESPONSE ===', JSON.stringify(data, null, 2));
 
       const transformed = transformInventoryData(data);
-      console.log('=== FINAL TRANSFORMED DATA ===');
-      console.log(JSON.stringify(transformed, null, 2));
-
       setMedicines(transformed);
       localStorage.setItem('pharmacyMedicines', JSON.stringify(transformed));
 
     } catch (err) {
       console.error('fetchInventory error:', err);
       setError(err.message);
-
       const saved = localStorage.getItem('pharmacyMedicines');
       if (saved) {
         try { setMedicines(JSON.parse(saved)); } catch (_) {}
@@ -296,6 +283,72 @@ const MedicineCatalog = () => {
     }
   };
 
+  // ─── Update quantity ──────────────────────────────────────────────────────────
+const updateQuantity = async (categoryId, medicine, delta) => {
+  const newQty = Math.max(0, (medicine.quantity || 0) + delta);
+  const medicineId = medicine.id;
+  const qKey = `qty-${medicineId}`;
+
+  // Optimistic update
+  setMedicines(prev => prev.map(cat =>
+    cat.id !== categoryId ? cat : {
+      ...cat,
+      medicines: cat.medicines.map(med =>
+        med.id !== medicineId ? med : { ...med, quantity: newQty }
+      )
+    }
+  ));
+
+  setQuantityLoading(prev => ({ ...prev, [qKey]: true }));
+
+  try {
+    const token = getAuthToken();
+    if (!token) throw new Error('Authentication required');
+
+    console.log(`📤 Sending quantity update for medicine ${medicineId}: ${newQty}`);
+
+    const response = await fetch(
+      `${API_BASE_URL}/PharmacyMedication/update-quantity/${medicineId}`,
+      {
+        method: 'PUT',
+        headers: {
+          // ✅ Send as plain integer — NOT application/json
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        // ✅ Raw integer as body string, not wrapped in an object
+        body: String(newQty)
+      }
+    );
+
+    console.log('📥 Response status:', response.status);
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('❌ Failed:', errorText);
+      throw new Error(`Failed to update quantity: ${response.status} – ${errorText}`);
+    }
+
+    const text = await response.text();
+    console.log('✅ Quantity updated successfully to', newQty, '| Response:', text);
+
+  } catch (err) {
+    console.error('updateQuantity error:', err);
+    // Revert optimistic update on error
+    setMedicines(prev => prev.map(cat =>
+      cat.id !== categoryId ? cat : {
+        ...cat,
+        medicines: cat.medicines.map(med =>
+          med.id !== medicineId ? med : { ...med, quantity: medicine.quantity }
+        )
+      }
+    ));
+    alert(`Error updating quantity: ${err.message}`);
+  } finally {
+    setQuantityLoading(prev => ({ ...prev, [qKey]: false }));
+  }
+};
+
   // ─── Remove medicine ──────────────────────────────────────────────────────────
   const removeMedicine = async (categoryId, medicine) => {
     if (!window.confirm(`Remove "${medicine.name}" from your catalog?`)) return;
@@ -335,7 +388,6 @@ const MedicineCatalog = () => {
     }
   };
 
-  // ─── Toggle category open/close ───────────────────────────────────────────────
   const toggleCategory = (categoryId) => {
     setExpandedCategories(prev => ({ ...prev, [categoryId]: !prev[categoryId] }));
   };
@@ -344,6 +396,118 @@ const MedicineCatalog = () => {
     cat.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     cat.medicines.some(med => med.name.toLowerCase().includes(searchTerm.toLowerCase()))
   );
+
+  // ─── Prescription Badge ───────────────────────────────────────────────────────
+  const PrescriptionBadge = ({ value }) => (
+    <span style={{
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: '4px',
+      padding: '3px 10px',
+      borderRadius: '20px',
+      fontSize: '0.78rem',
+      fontWeight: '600',
+      backgroundColor: value ? '#fff3e0' : '#e8f5e9',
+      color: value ? '#e65100' : '#2e7d32',
+      border: `1.5px solid ${value ? '#ff9800' : '#4caf50'}`,
+      whiteSpace: 'nowrap',
+      flexShrink: 0,
+    }}>
+      <span style={{ fontSize: '12px' }}>{value ? '📋' : '✅'}</span>
+      {value ? 'By Prescription' : 'Without Prescription'}
+    </span>
+  );
+
+  // ─── Quantity Control ─────────────────────────────────────────────────────────
+  const QuantityControl = ({ categoryId, medicine }) => {
+    const qKey = `qty-${medicine.id}`;
+    const isLoading = quantityLoading[qKey];
+    const isRemoving = actionLoading[`remove-${medicine.id}`];
+    const disabled = isLoading || isRemoving;
+
+    return (
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: '6px',
+        backgroundColor: 'var(--bg-main)',
+        border: '1px solid var(--border)',
+        borderRadius: '8px',
+        padding: '3px 6px',
+        flexShrink: 0,
+      }}>
+        {/* Minus */}
+        <button
+          onClick={() => updateQuantity(categoryId, medicine, -1)}
+          disabled={disabled || medicine.quantity <= 0}
+          style={{
+            width: '24px',
+            height: '24px',
+            borderRadius: '6px',
+            border: 'none',
+            backgroundColor: medicine.quantity <= 0 ? 'transparent' : 'rgba(239,68,68,0.1)',
+            color: medicine.quantity <= 0 ? 'var(--text-muted)' : 'var(--danger)',
+            cursor: (disabled || medicine.quantity <= 0) ? 'not-allowed' : 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontWeight: '700',
+            transition: 'all 0.15s',
+            flexShrink: 0,
+            opacity: (disabled || medicine.quantity <= 0) ? 0.4 : 1,
+          }}
+          title="Decrease quantity"
+        >
+          <Minus size={12} />
+        </button>
+
+        {/* Count */}
+        <span style={{
+          minWidth: '32px',
+          textAlign: 'center',
+          fontWeight: '700',
+          fontSize: '0.95rem',
+          color: medicine.quantity === 0
+            ? 'var(--danger)'
+            : medicine.quantity <= 3
+              ? '#f59e0b'
+              : 'var(--text-main)',
+          position: 'relative',
+        }}>
+          {isLoading ? (
+            <Loader size={12} style={{ animation: 'spin 1s linear infinite' }} />
+          ) : (
+            medicine.quantity
+          )}
+        </span>
+
+        {/* Plus */}
+        <button
+          onClick={() => updateQuantity(categoryId, medicine, +1)}
+          disabled={disabled}
+          style={{
+            width: '24px',
+            height: '24px',
+            borderRadius: '6px',
+            border: 'none',
+            backgroundColor: 'rgba(16,185,129,0.1)',
+            color: 'var(--success)',
+            cursor: disabled ? 'not-allowed' : 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontWeight: '700',
+            transition: 'all 0.15s',
+            flexShrink: 0,
+            opacity: disabled ? 0.4 : 1,
+          }}
+          title="Increase quantity"
+        >
+          <Plus size={12} />
+        </button>
+      </div>
+    );
+  };
 
   // ─── Loading state ────────────────────────────────────────────────────────────
   if (loading) {
@@ -367,7 +531,10 @@ const MedicineCatalog = () => {
   // ─── Render ───────────────────────────────────────────────────────────────────
   return (
     <div style={{ padding: '2rem' }}>
-      <style>{`@keyframes spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }`}</style>
+      <style>{`
+        @keyframes spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
+        .qty-btn:hover:not(:disabled) { filter: brightness(0.9); transform: scale(1.1); }
+      `}</style>
 
       {/* Header */}
       <section className="overview-header">
@@ -530,7 +697,7 @@ const MedicineCatalog = () => {
                             border: '1px solid var(--border)',
                             borderRadius: '8px',
                             display: 'flex',
-                            alignItems: 'center',
+                            alignItems: 'flex-start',
                             gap: '1rem',
                             opacity: isRemoving ? 0.5 : 1,
                             transition: 'opacity 0.2s'
@@ -546,30 +713,35 @@ const MedicineCatalog = () => {
                                 src={medicine.image}
                                 alt={medicine.name}
                                 style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                                onError={(e) => {
-                                  e.target.style.display = 'none';
-                                }}
+                                onError={(e) => { e.target.style.display = 'none'; }}
                               />
                             </div>
                           ) : (
-                            <div className="med-icon">
+                            <div className="med-icon" style={{ flexShrink: 0 }}>
                               <Pill size={18} />
                             </div>
                           )}
 
-                          {/* Info */}
-                          <div style={{ flex: 1 }}>
+                          {/* Info block */}
+                          <div style={{ flex: 1, minWidth: 0 }}>
+
+                            {/* Row 1 – name + price */}
                             <div style={{
                               display: 'flex',
                               justifyContent: 'space-between',
-                              alignItems: 'center'
+                              alignItems: 'center',
+                              flexWrap: 'wrap',
+                              gap: '0.5rem'
                             }}>
-                              <span style={{ fontWeight: 600 }}>{medicine.name}</span>
+                              <span style={{ fontWeight: 600, fontSize: '1rem' }}>
+                                {medicine.name}
+                              </span>
                               <span style={{ color: 'var(--accent)', fontWeight: 600 }}>
                                 {medicine.price}
                               </span>
                             </div>
 
+                            {/* Row 2 – description */}
                             {medicine.description && (
                               <p style={{
                                 fontSize: '0.85rem',
@@ -581,22 +753,23 @@ const MedicineCatalog = () => {
                               </p>
                             )}
 
+                            {/* Row 3 – stock toggle + quantity + remove */}
                             <div style={{
                               display: 'flex',
-                              justifyContent: 'space-between',
                               alignItems: 'center',
-                              marginTop: '0.5rem',
-                              gap: '0.5rem'
+                              gap: '0.75rem',
+                              marginTop: '0.75rem',
+                              flexWrap: 'wrap'
                             }}>
-                              {/* Toggle stock */}
+                              {/* In Stock / Out of Stock toggle */}
                               <button
                                 onClick={() => toggleStock(category.id, medicine)}
                                 disabled={isToggling || isRemoving}
                                 style={{
                                   fontSize: '0.85rem',
-                                  padding: '0.25rem 0.75rem',
-                                  borderRadius: '4px',
-                                  border: 'none',
+                                  padding: '0.3rem 0.85rem',
+                                  borderRadius: '6px',
+                                  border: `1.5px solid ${medicine.inStock ? '#10b981' : '#ef4444'}`,
                                   cursor: (isToggling || isRemoving) ? 'not-allowed' : 'pointer',
                                   fontWeight: 600,
                                   backgroundColor: medicine.inStock
@@ -605,24 +778,35 @@ const MedicineCatalog = () => {
                                   opacity: (isToggling || isRemoving) ? 0.6 : 1,
                                   display: 'flex',
                                   alignItems: 'center',
-                                  gap: '0.25rem'
+                                  gap: '0.35rem',
+                                  flexShrink: 0,
+                                  transition: 'all 0.2s',
                                 }}
                               >
-                                {isToggling && (
-                                  <Loader size={12}
-                                    style={{ animation: 'spin 1s linear infinite' }} />
-                                )}
-                                {medicine.inStock ? '✔ In Stock' : '✖ Out of Stock'}
+                                {isToggling
+                                  ? <Loader size={12} style={{ animation: 'spin 1s linear infinite' }} />
+                                  : <span>{medicine.inStock ? '✔' : '✖'}</span>
+                                }
+                                {medicine.inStock ? 'In Stock' : 'Out of Stock'}
                               </button>
 
-                              {/* Remove */}
+                              {/* Quantity control */}
+                              <QuantityControl
+                                categoryId={category.id}
+                                medicine={medicine}
+                              />
+
+                              {/* Spacer */}
+                              <div style={{ flex: 1 }} />
+
+                              {/* Remove button */}
                               <button
                                 onClick={() => removeMedicine(category.id, medicine)}
                                 disabled={isToggling || isRemoving}
                                 style={{
-                                  padding: '0.25rem 0.75rem',
-                                  borderRadius: '4px',
-                                  border: '1px solid var(--danger)',
+                                  padding: '0.3rem 0.85rem',
+                                  borderRadius: '6px',
+                                  border: '1.5px solid var(--danger)',
                                   backgroundColor: 'transparent',
                                   color: 'var(--danger)',
                                   cursor: (isToggling || isRemoving) ? 'not-allowed' : 'pointer',
@@ -630,18 +814,25 @@ const MedicineCatalog = () => {
                                   fontWeight: 600,
                                   display: 'flex',
                                   alignItems: 'center',
-                                  gap: '0.25rem',
-                                  opacity: (isToggling || isRemoving) ? 0.6 : 1
+                                  gap: '0.35rem',
+                                  opacity: (isToggling || isRemoving) ? 0.6 : 1,
+                                  flexShrink: 0,
+                                  transition: 'all 0.2s',
                                 }}
                               >
                                 {isRemoving
-                                  ? <Loader size={14}
-                                      style={{ animation: 'spin 1s linear infinite' }} />
+                                  ? <Loader size={14} style={{ animation: 'spin 1s linear infinite' }} />
                                   : <Trash2 size={14} />
                                 }
                                 Remove
                               </button>
                             </div>
+
+                            {/* Row 4 – Prescription badge */}
+                            <div style={{ marginTop: '0.6rem' }}>
+                              <PrescriptionBadge value={medicine.requiresPrescription} />
+                            </div>
+
                           </div>
                         </div>
                       );
