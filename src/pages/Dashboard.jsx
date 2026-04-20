@@ -95,137 +95,127 @@ const Dashboard = ({ userData, onSignOut }) => {
     }
   };
 
-  // ── Toggle pharmacy open / closed ─────────────────────────────────────────
- const handleToggleSwitch = async () => {
-    if (isToggling) return;
-    setIsToggling(true);
+  // ── Toggle pharmacy open / closed ────────────
 
-    const newStatus = !isPharmacyOpen;
-    setIsPharmacyOpen(newStatus);
+const handleToggleSwitch = async () => {
+  if (isToggling) return;
+  setIsToggling(true);
+
+  const newStatus = !isPharmacyOpen;
+
+  try {
+    const token = getToken();
+    if (!token) throw new Error('Authentication required');
+
+    console.log('🔄 Toggling pharmacy status to:', newStatus);
+
+    const formData = new FormData();
+
+    // ── 1. Append profile fields (skip status and images) ────────────────
+    if (pharmacyProfile) {
+      Object.entries(pharmacyProfile).forEach(([key, val]) => {
+        if (
+          key === 'isActive' || key === 'IsActive' ||
+          key === 'image'    || key === 'imageFile' ||
+          val === null       || val === undefined
+        ) return;
+        formData.append(key, String(val));
+      });
+    }
+
+    // ── 2. Append IsActive with PascalCase (backend expects this) ────────
+    formData.append('IsActive', String(newStatus));
+    console.log('📤 FormData key: IsActive =', newStatus);
+
+    // ── 3. Send request ──────────────────────────────────────────────────
+    const res = await fetch(`${API_BASE_URL}/Pharmacy/me`, {
+      method: 'PUT',
+      headers: { 'Authorization': `Bearer ${token}` },
+      body: formData
+    });
+
+    const responseText = await res.text();
+    console.log('📥 Response Status:', res.status);
+    console.log('📥 Raw Response Text:', responseText);
+
+    if (res.status === 401) throw new Error('Session expired. Please log in again.');
+    if (!res.ok) throw new Error(`Server error ${res.status}: ${responseText}`);
+
+    // ── 4. Parse response ────────────────────────────────────────────────
+    let data = null;
+    let parseError = null;
+
+    if (responseText.trim() === '') {
+      console.warn('⚠️ Response body is empty. Assuming success but cannot verify status.');
+      // If body is empty, we assume success but can't verify
+      setIsPharmacyOpen(newStatus);
+      setPharmacyProfile(prev =>
+        prev ? { ...prev, isActive: newStatus, IsActive: newStatus } : prev
+      );
+      return;
+    }
 
     try {
-      const token = getToken();
-      if (!token) throw new Error('Authentication required');
-
-      console.log(`Toggling pharmacy → isActive: ${newStatus}`);
-      console.log('Current pharmacyProfile:', pharmacyProfile);
-
-      // Log validation errors in detail
-      const logErrors = (data) => {
-        if (data?.errors) {
-          console.error('=== VALIDATION ERRORS ===');
-          Object.entries(data.errors).forEach(([field, messages]) => {
-            console.error(`  Field "${field}":`, messages);
-          });
-          console.error('=========================');
-        }
-      };
-
-      // ── Attempt 1: FormData with all profile fields ─────────────────────
-      console.log('Attempt 1: FormData with full profile...');
-      const formData = new FormData();
-      formData.append('isActive', String(newStatus));
-
-      // Append every field from pharmacyProfile
-      if (pharmacyProfile) {
-        Object.entries(pharmacyProfile).forEach(([key, value]) => {
-          if (value !== null && value !== undefined && key !== 'image' && key !== 'logo') {
-            formData.append(key, String(value));
-            console.log(`  FormData field: ${key} = ${value}`);
-          }
-        });
-      }
-
-      let res = await fetch(`${API_BASE_URL}/Pharmacy/me`, {
-        method: 'PUT',
-        headers: { 'Authorization': `Bearer ${token}` },
-        body: formData
-      });
-
-      let responseData = null;
-      try { responseData = await res.json(); } catch (_) {}
-      console.log('Attempt 1 status:', res.status, responseData);
-      logErrors(responseData);
-
-      // ── Attempt 2: JSON with full profile ───────────────────────────────
-      if (!res.ok) {
-        console.log('Attempt 2: JSON with full profile...');
-        const jsonBody = { ...pharmacyProfile, isActive: newStatus };
-        console.log('JSON body:', jsonBody);
-
-        res = await fetch(`${API_BASE_URL}/Pharmacy/me`, {
-          method: 'PUT',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify(jsonBody)
-        });
-
-        try { responseData = await res.json(); } catch (_) {}
-        console.log('Attempt 2 status:', res.status, responseData);
-        logErrors(responseData);
-      }
-
-      // ── Attempt 3: JSON with only isActive ──────────────────────────────
-      if (!res.ok) {
-        console.log('Attempt 3: JSON with only isActive...');
-        res = await fetch(`${API_BASE_URL}/Pharmacy/me`, {
-          method: 'PUT',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({ isActive: newStatus })
-        });
-
-        try { responseData = await res.json(); } catch (_) {}
-        console.log('Attempt 3 status:', res.status, responseData);
-        logErrors(responseData);
-      }
-
-      // ── Attempt 4: PATCH instead of PUT ─────────────────────────────────
-      if (!res.ok) {
-        console.log('Attempt 4: PATCH with isActive...');
-        res = await fetch(`${API_BASE_URL}/Pharmacy/me`, {
-          method: 'PATCH',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({ isActive: newStatus })
-        });
-
-        try { responseData = await res.json(); } catch (_) {}
-        console.log('Attempt 4 status:', res.status, responseData);
-        logErrors(responseData);
-      }
-
-      if (res.status === 401) throw new Error('Session expired. Please log in again.');
-
-      if (!res.ok) {
-        // Log the full error details so we can fix it
-        console.error('All attempts failed. Last error:', responseData);
-        console.error('Validation errors detail:', JSON.stringify(responseData?.errors, null, 2));
-        throw new Error(
-          responseData?.message ||
-          responseData?.title   ||
-          `Failed to update pharmacy status (${res.status})`
-        );
-      }
-
-      console.log(`✅ Pharmacy is now ${newStatus ? 'OPEN' : 'CLOSED'}`);
-      setPharmacyProfile(prev => prev ? { ...prev, isActive: newStatus } : prev);
-
-    } catch (err) {
-      console.error('❌ Toggle failed:', err);
-      setIsPharmacyOpen(!newStatus);
-      alert(`Could not update pharmacy status:\n${err.message}`);
-    } finally {
-      setIsToggling(false);
+      data = JSON.parse(responseText);
+      console.log('✅ Parsed JSON:', data);
+    } catch (e) {
+      parseError = e;
+      console.error('❌ JSON Parse Error:', e);
+      console.error('Response is not valid JSON. First 200 chars:', responseText.slice(0, 200));
+      throw new Error('Server returned invalid JSON. Check console for details.');
     }
-  };
 
+    // ── 5. Check status field ────────────────────────────────────────────
+    // Check both casings
+    const confirmedStatus =
+      data?.IsActive ?? data?.isActive ?? data?.active ?? null;
+
+    console.log('🔍 Status in response:', confirmedStatus);
+
+    if (confirmedStatus === null) {
+      console.warn('⚠️ Response JSON does not contain IsActive or isActive field.');
+      console.warn('Available keys:', Object.keys(data));
+      // Still update UI optimistically if request succeeded
+      setIsPharmacyOpen(newStatus);
+      setPharmacyProfile(prev =>
+        prev ? { ...prev, isActive: newStatus, IsActive: newStatus } : prev
+      );
+      alert(
+        'Status updated, but response missing status field.\n' +
+        'Please verify in database. Backend may need to include IsActive in response DTO.'
+      );
+      return;
+    }
+
+    // ── 6. Verify update ─────────────────────────────────────────────────
+    if (confirmedStatus === newStatus) {
+      console.log('🎉 SUCCESS: Status updated and confirmed by server!');
+      setIsPharmacyOpen(newStatus);
+      setPharmacyProfile(prev =>
+        prev ? { ...prev, isActive: newStatus, IsActive: newStatus } : prev
+      );
+    } else {
+      console.error(
+        `❌ MISMATCH: Sent IsActive=${newStatus}, but server returned ${confirmedStatus}`
+      );
+      alert(
+        `Update failed: Backend ignored the change.\n` +
+        `Sent: ${newStatus}\n` +
+        `Received: ${confirmedStatus}\n\n` +
+        `Backend developer must ensure:\n` +
+        `1. FormData binding accepts 'IsActive'\n` +
+        `2. Service layer maps dto.IsActive to entity.IsActive\n` +
+        `3. Database save includes IsActive`
+      );
+    }
+
+  } catch (err) {
+    console.error('❌ Toggle failed:', err);
+    alert(`Could not update status:\n${err.message}`);
+  } finally {
+    setIsToggling(false);
+  }
+};
   // ── Loading splash ────────────────────────────────────────────────────────
   if (loading && !pharmacyProfile) {
     return (
