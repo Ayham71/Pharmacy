@@ -301,7 +301,7 @@ const GlobalCatalog = () => {
 
       const response = await fetch(
         `${API_BASE_URL}/PharmacyMedication/add-medicine/${medicineId}`,
-        { method: 'POST', headers: getHeaders(), body: JSON.stringify({}) }
+        { method: 'POST', headers: getHeaders(), body: JSON.stringify(1) }
       );
 
       let responseData = null;

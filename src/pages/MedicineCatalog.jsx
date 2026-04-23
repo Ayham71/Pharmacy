@@ -31,9 +31,7 @@ const MedicineCatalog = () => {
 
   const getImageUrl = (imagePath) => {
     if (!imagePath) return null;
-    if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
-      return imagePath;
-    }
+    if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) return imagePath;
     const cleanPath = imagePath.startsWith('/') ? imagePath : `/${imagePath}`;
     return `${IMAGE_BASE_URL}${cleanPath}`;
   };
@@ -44,10 +42,8 @@ const MedicineCatalog = () => {
       'antibiotics': '💉', 'antibiotic': '💉',
       'vitamins': '💪', 'vitamin': '💪', 'supplements': '💪',
       'cold': '🤧', 'flu': '🤧',
-      'digestive': '🍼',
-      'allergy': '🤧',
-      'skin': '🧴',
-      'first aid': '🩹',
+      'digestive': '🍼', 'allergy': '🤧',
+      'skin': '🧴', 'first aid': '🩹',
     };
     const normalized = (categoryName || '').toLowerCase();
     for (const [key, icon] of Object.entries(iconMap)) {
@@ -84,15 +80,11 @@ const MedicineCatalog = () => {
     fetchInventory();
   }, []);
 
-  // ─── Transform flat medications array ───────────────────────────────────────
   const transformFlatMedications = (items) => {
     const categoriesMap = {};
-
     items.forEach((item) => {
-      const categoryName =
-        item.category || item.categoryName || item.Category || 'Uncategorized';
-      const categoryId =
-        item.categoryId || item.category_id || categoryName;
+      const categoryName = item.category || item.categoryName || item.Category || 'Uncategorized';
+      const categoryId = item.categoryId || item.category_id || categoryName;
 
       if (!categoriesMap[categoryId]) {
         categoriesMap[categoryId] = {
@@ -109,25 +101,16 @@ const MedicineCatalog = () => {
         description: item.activeIngredient || item.description || '',
         price: formatPrice(item.price || 0),
         inStock: item.isActive !== undefined ? item.isActive : true,
-        quantity: item.quantity ?? item.stock ?? item.stockCount ?? 0,
-        requiresPrescription:
-          item.requiresPrescription ??
-          item.RequiresPrescription ??
-          item.requires_prescription ??
-          item.isPrescription ??
-          false,
+        quantity: item.quantity ?? item.stock ?? item.stockCount ?? 1,
+        requiresPrescription: item.requiresPrescription ?? item.RequiresPrescription ?? item.requires_prescription ?? item.isPrescription ?? false,
         image: getImageUrl(item.image || item.imageUrl),
         originalData: item
       });
     });
-
     return Object.values(categoriesMap);
   };
 
-  // ─── Main transform function ─────────────────────────────────────────────────
   const transformInventoryData = (apiData) => {
-    console.log('Raw API data:', apiData);
-
     let categories = [];
 
     if (apiData && apiData.categories && Array.isArray(apiData.categories)) {
@@ -147,72 +130,61 @@ const MedicineCatalog = () => {
     } else if (apiData && apiData.inventory && Array.isArray(apiData.inventory)) {
       return transformFlatMedications(apiData.inventory);
     } else {
-      console.warn('Unknown API structure', apiData);
       return [];
     }
 
     if (categories.length === 0) return [];
 
-    const result = categories
-      .map((cat) => {
-        const categoryId   = cat.id || cat.categoryId || cat.CategoryId;
-        const categoryName = cat.categoryName || cat.name || cat.CategoryName || 'Uncategorized';
-        const medications  = cat.medications || cat.medicines || cat.Medications || [];
+    return categories.map((cat) => {
+      const categoryId = cat.id || cat.categoryId || cat.CategoryId;
+      const categoryName = cat.categoryName || cat.name || cat.CategoryName || 'Uncategorized';
+      const medications = cat.medications || cat.medicines || cat.Medications || [];
 
-        const transformedMedicines = medications.map((med) => {
-          const medId    = med.id || med.medicationId || med.medicineId || med._id;
-          const medName  = med.medicationName || med.name || med.medicineName || 'Unnamed Medicine';
-          const medDesc  = med.activeIngredient || med.description || med.details || '';
-          const medPrice = med.price || med.cost || 0;
-          const medInStock =
-            med.isActive    !== undefined ? med.isActive :
-            med.inStock     !== undefined ? med.inStock  :
-            med.isAvailable !== undefined ? med.isAvailable : true;
-          const medImage = med.image || med.imageUrl || med.imagePath || null;
+      const transformedMedicines = medications.map((med) => {
+        const medId = med.id || med.medicationId || med.medicineId || med._id;
+        const medName = med.medicationName || med.name || med.medicineName || 'Unnamed Medicine';
+        const medDesc = med.activeIngredient || med.description || med.details || '';
+        const medPrice = med.price || med.cost || 0;
+        const medInStock =
+          med.isActive !== undefined ? med.isActive :
+          med.inStock !== undefined ? med.inStock :
+          med.isAvailable !== undefined ? med.isAvailable : true;
+        const medImage = med.image || med.imageUrl || med.imagePath || null;
 
-          // ── Quantity ──────────────────────────────────────────────────────
-          const medQuantity =
-            med.quantity    !== undefined ? med.quantity    :
-            med.stock       !== undefined ? med.stock       :
-            med.stockCount  !== undefined ? med.stockCount  :
-            med.Quantity    !== undefined ? med.Quantity    : 0;
+        // Default quantity to 1 for newly added medicines
+        const medQuantity =
+          med.quantity !== undefined ? med.quantity :
+          med.stock !== undefined ? med.stock :
+          med.stockCount !== undefined ? med.stockCount :
+          med.Quantity !== undefined ? med.Quantity : 1;
 
-          // ── Requires Prescription (from central/global catalog data) ──────
-          const medRx =
-            med.requiresPrescription  ??
-            med.RequiresPrescription  ??
-            med.requires_prescription ??
-            med.centralMedication?.requiresPrescription ??
-            med.medication?.requiresPrescription ??
-            med.isPrescription ??
-            false;
-
-          return {
-            id:                   medId,
-            name:                 medName,
-            description:          medDesc,
-            price:                formatPrice(medPrice),
-            inStock:              medInStock,
-            quantity:             Number(medQuantity),
-            requiresPrescription: Boolean(medRx),
-            image:                getImageUrl(medImage),
-            originalData:         med
-          };
-        });
+        const medRx =
+          med.requiresPrescription ?? med.RequiresPrescription ??
+          med.requires_prescription ?? med.centralMedication?.requiresPrescription ??
+          med.medication?.requiresPrescription ?? med.isPrescription ?? false;
 
         return {
-          id:        categoryId,
-          name:      categoryName,
-          icon:      getCategoryIcon(categoryName),
-          medicines: transformedMedicines
+          id: medId,
+          name: medName,
+          description: medDesc,
+          price: formatPrice(medPrice),
+          inStock: medInStock,
+          quantity: Number(medQuantity),
+          requiresPrescription: Boolean(medRx),
+          image: getImageUrl(medImage),
+          originalData: med
         };
-      })
-      .filter((cat) => cat.medicines.length > 0);
+      });
 
-    return result;
+      return {
+        id: categoryId,
+        name: categoryName,
+        icon: getCategoryIcon(categoryName),
+        medicines: transformedMedicines
+      };
+    }).filter((cat) => cat.medicines.length > 0);
   };
 
-  // ─── Fetch inventory ─────────────────────────────────────────────────────────
   const fetchInventory = async () => {
     setLoading(true);
     setError(null);
@@ -226,17 +198,14 @@ const MedicineCatalog = () => {
       });
 
       if (response.status === 401) throw new Error('Session expired. Please log in again.');
-      if (!response.ok)           throw new Error(`Failed to fetch inventory: ${response.status}`);
+      if (!response.ok) throw new Error(`Failed to fetch inventory: ${response.status}`);
 
       const data = await response.json();
-      console.log('=== RAW INVENTORY RESPONSE ===', JSON.stringify(data, null, 2));
-
       const transformed = transformInventoryData(data);
       setMedicines(transformed);
       localStorage.setItem('pharmacyMedicines', JSON.stringify(transformed));
 
     } catch (err) {
-      console.error('fetchInventory error:', err);
       setError(err.message);
       const saved = localStorage.getItem('pharmacyMedicines');
       if (saved) {
@@ -247,10 +216,9 @@ const MedicineCatalog = () => {
     }
   };
 
-  // ─── Toggle stock ─────────────────────────────────────────────────────────────
   const toggleStock = async (categoryId, medicine) => {
     const medicineId = medicine.id;
-    const actionKey  = `toggle-${medicineId}`;
+    const actionKey = `toggle-${medicineId}`;
     setActionLoading(prev => ({ ...prev, [actionKey]: true }));
 
     try {
@@ -276,85 +244,102 @@ const MedicineCatalog = () => {
       localStorage.setItem('pharmacyMedicines', JSON.stringify(updated));
 
     } catch (err) {
-      console.error('toggleStock error:', err);
       alert(`Error: ${err.message}`);
     } finally {
       setActionLoading(prev => ({ ...prev, [actionKey]: false }));
     }
   };
 
-  // ─── Update quantity ──────────────────────────────────────────────────────────
-const updateQuantity = async (categoryId, medicine, delta) => {
-  const newQty = Math.max(0, (medicine.quantity || 0) + delta);
-  const medicineId = medicine.id;
-  const qKey = `qty-${medicineId}`;
+  // ─── Update quantity + auto out-of-stock when qty hits 0 ─────────────────────
+  const updateQuantity = async (categoryId, medicine, delta) => {
+    const newQty = Math.max(0, (medicine.quantity || 0) + delta);
+    const medicineId = medicine.id;
+    const qKey = `qty-${medicineId}`;
 
-  // Optimistic update
-  setMedicines(prev => prev.map(cat =>
-    cat.id !== categoryId ? cat : {
-      ...cat,
-      medicines: cat.medicines.map(med =>
-        med.id !== medicineId ? med : { ...med, quantity: newQty }
-      )
-    }
-  ));
+    // Should we also toggle stock status?
+    const shouldGoOutOfStock = newQty === 0 && medicine.inStock;
+    const shouldGoInStock    = newQty > 0 && !medicine.inStock;
 
-  setQuantityLoading(prev => ({ ...prev, [qKey]: true }));
-
-  try {
-    const token = getAuthToken();
-    if (!token) throw new Error('Authentication required');
-
-    console.log(`📤 Sending quantity update for medicine ${medicineId}: ${newQty}`);
-
-    const response = await fetch(
-      `${API_BASE_URL}/PharmacyMedication/update-quantity/${medicineId}`,
-      {
-        method: 'PUT',
-        headers: {
-          // ✅ Send as plain integer — NOT application/json
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        // ✅ Raw integer as body string, not wrapped in an object
-        body: String(newQty)
-      }
-    );
-
-    console.log('📥 Response status:', response.status);
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('❌ Failed:', errorText);
-      throw new Error(`Failed to update quantity: ${response.status} – ${errorText}`);
-    }
-
-    const text = await response.text();
-    console.log('✅ Quantity updated successfully to', newQty, '| Response:', text);
-
-  } catch (err) {
-    console.error('updateQuantity error:', err);
-    // Revert optimistic update on error
+    // Optimistic update — quantity AND inStock
     setMedicines(prev => prev.map(cat =>
       cat.id !== categoryId ? cat : {
         ...cat,
         medicines: cat.medicines.map(med =>
-          med.id !== medicineId ? med : { ...med, quantity: medicine.quantity }
+          med.id !== medicineId ? med : {
+            ...med,
+            quantity: newQty,
+            inStock: shouldGoOutOfStock ? false : shouldGoInStock ? true : med.inStock
+          }
         )
       }
     ));
-    alert(`Error updating quantity: ${err.message}`);
-  } finally {
-    setQuantityLoading(prev => ({ ...prev, [qKey]: false }));
-  }
-};
 
-  // ─── Remove medicine ──────────────────────────────────────────────────────────
+    setQuantityLoading(prev => ({ ...prev, [qKey]: true }));
+
+    try {
+      const token = getAuthToken();
+      if (!token) throw new Error('Authentication required');
+
+      // 1️⃣  Update quantity
+      const qtyResponse = await fetch(
+        `${API_BASE_URL}/PharmacyMedication/update-quantity/${medicineId}`,
+        {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: String(newQty)
+        }
+      );
+
+      if (!qtyResponse.ok) {
+        const errorText = await qtyResponse.text();
+        throw new Error(`Failed to update quantity: ${qtyResponse.status} – ${errorText}`);
+      }
+
+      // 2️⃣  If quantity hit 0 (or came back from 0), toggle stock status too
+      if (shouldGoOutOfStock || shouldGoInStock) {
+        const toggleResponse = await fetch(
+          `${API_BASE_URL}/PharmacyMedication/toggle-status/${medicineId}`,
+          { method: 'PUT', headers: getHeaders() }
+        );
+
+        if (!toggleResponse.ok) {
+          // Non-fatal — quantity was updated; just warn
+          console.warn('Could not auto-toggle stock status:', toggleResponse.status);
+        }
+      }
+
+      // Persist to localStorage
+      setMedicines(prev => {
+        localStorage.setItem('pharmacyMedicines', JSON.stringify(prev));
+        return prev;
+      });
+
+    } catch (err) {
+      console.error('updateQuantity error:', err);
+      // Revert optimistic update
+      setMedicines(prev => prev.map(cat =>
+        cat.id !== categoryId ? cat : {
+          ...cat,
+          medicines: cat.medicines.map(med =>
+            med.id !== medicineId ? med : {
+              ...med,
+              quantity: medicine.quantity,
+              inStock: medicine.inStock
+            }
+          )
+        }
+      ));
+      alert(`Error updating quantity: ${err.message}`);
+    } finally {
+      setQuantityLoading(prev => ({ ...prev, [qKey]: false }));
+    }
+  };
+
   const removeMedicine = async (categoryId, medicine) => {
     if (!window.confirm(`Remove "${medicine.name}" from your catalog?`)) return;
 
     const medicineId = medicine.id;
-    const actionKey  = `remove-${medicineId}`;
+    const actionKey = `remove-${medicineId}`;
     setActionLoading(prev => ({ ...prev, [actionKey]: true }));
 
     try {
@@ -381,7 +366,6 @@ const updateQuantity = async (categoryId, medicine, delta) => {
       localStorage.setItem('pharmacyMedicines', JSON.stringify(updated));
 
     } catch (err) {
-      console.error('removeMedicine error:', err);
       alert(`Error: ${err.message}`);
     } finally {
       setActionLoading(prev => ({ ...prev, [actionKey]: false }));
@@ -397,28 +381,21 @@ const updateQuantity = async (categoryId, medicine, delta) => {
     cat.medicines.some(med => med.name.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
-  // ─── Prescription Badge ───────────────────────────────────────────────────────
   const PrescriptionBadge = ({ value }) => (
     <span style={{
-      display: 'inline-flex',
-      alignItems: 'center',
-      gap: '4px',
-      padding: '3px 10px',
-      borderRadius: '20px',
-      fontSize: '0.78rem',
+      display: 'inline-flex', alignItems: 'center', gap: '4px',
+      padding: '3px 10px', borderRadius: '20px', fontSize: '0.78rem',
       fontWeight: '600',
       backgroundColor: value ? '#fff3e0' : '#e8f5e9',
       color: value ? '#e65100' : '#2e7d32',
       border: `1.5px solid ${value ? '#ff9800' : '#4caf50'}`,
-      whiteSpace: 'nowrap',
-      flexShrink: 0,
+      whiteSpace: 'nowrap', flexShrink: 0,
     }}>
       <span style={{ fontSize: '12px' }}>{value ? '📋' : '✅'}</span>
       {value ? 'By Prescription' : 'Without Prescription'}
     </span>
   );
 
-  // ─── Quantity Control ─────────────────────────────────────────────────────────
   const QuantityControl = ({ categoryId, medicine }) => {
     const qKey = `qty-${medicine.id}`;
     const isLoading = quantityLoading[qKey];
@@ -427,33 +404,20 @@ const updateQuantity = async (categoryId, medicine, delta) => {
 
     return (
       <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: '6px',
-        backgroundColor: 'var(--bg-main)',
-        border: '1px solid var(--border)',
-        borderRadius: '8px',
-        padding: '3px 6px',
-        flexShrink: 0,
+        display: 'flex', alignItems: 'center', gap: '6px',
+        backgroundColor: 'var(--bg-main)', border: '1px solid var(--border)',
+        borderRadius: '8px', padding: '3px 6px', flexShrink: 0,
       }}>
-        {/* Minus */}
         <button
           onClick={() => updateQuantity(categoryId, medicine, -1)}
           disabled={disabled || medicine.quantity <= 0}
           style={{
-            width: '24px',
-            height: '24px',
-            borderRadius: '6px',
-            border: 'none',
+            width: '24px', height: '24px', borderRadius: '6px', border: 'none',
             backgroundColor: medicine.quantity <= 0 ? 'transparent' : 'rgba(239,68,68,0.1)',
             color: medicine.quantity <= 0 ? 'var(--text-muted)' : 'var(--danger)',
             cursor: (disabled || medicine.quantity <= 0) ? 'not-allowed' : 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontWeight: '700',
-            transition: 'all 0.15s',
-            flexShrink: 0,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontWeight: '700', transition: 'all 0.15s', flexShrink: 0,
             opacity: (disabled || medicine.quantity <= 0) ? 0.4 : 1,
           }}
           title="Decrease quantity"
@@ -461,44 +425,28 @@ const updateQuantity = async (categoryId, medicine, delta) => {
           <Minus size={12} />
         </button>
 
-        {/* Count */}
         <span style={{
-          minWidth: '32px',
-          textAlign: 'center',
-          fontWeight: '700',
+          minWidth: '32px', textAlign: 'center', fontWeight: '700',
           fontSize: '0.95rem',
-          color: medicine.quantity === 0
-            ? 'var(--danger)'
-            : medicine.quantity <= 3
-              ? '#f59e0b'
-              : 'var(--text-main)',
+          color: medicine.quantity === 0 ? 'var(--danger)' :
+                 medicine.quantity <= 3 ? '#f59e0b' : 'var(--text-main)',
           position: 'relative',
         }}>
-          {isLoading ? (
-            <Loader size={12} style={{ animation: 'spin 1s linear infinite' }} />
-          ) : (
-            medicine.quantity
-          )}
+          {isLoading
+            ? <Loader size={12} style={{ animation: 'spin 1s linear infinite' }} />
+            : medicine.quantity
+          }
         </span>
 
-        {/* Plus */}
         <button
           onClick={() => updateQuantity(categoryId, medicine, +1)}
           disabled={disabled}
           style={{
-            width: '24px',
-            height: '24px',
-            borderRadius: '6px',
-            border: 'none',
-            backgroundColor: 'rgba(16,185,129,0.1)',
-            color: 'var(--success)',
+            width: '24px', height: '24px', borderRadius: '6px', border: 'none',
+            backgroundColor: 'rgba(16,185,129,0.1)', color: 'var(--success)',
             cursor: disabled ? 'not-allowed' : 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontWeight: '700',
-            transition: 'all 0.15s',
-            flexShrink: 0,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontWeight: '700', transition: 'all 0.15s', flexShrink: 0,
             opacity: disabled ? 0.4 : 1,
           }}
           title="Increase quantity"
@@ -509,17 +457,12 @@ const updateQuantity = async (categoryId, medicine, delta) => {
     );
   };
 
-  // ─── Loading state ────────────────────────────────────────────────────────────
   if (loading) {
     return (
       <div style={{
-        padding: '2rem',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        minHeight: '400px',
-        gap: '1rem'
+        padding: '2rem', display: 'flex', flexDirection: 'column',
+        alignItems: 'center', justifyContent: 'center',
+        minHeight: '400px', gap: '1rem'
       }}>
         <style>{`@keyframes spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }`}</style>
         <Loader size={48} style={{ animation: 'spin 1s linear infinite' }} />
@@ -528,7 +471,6 @@ const updateQuantity = async (categoryId, medicine, delta) => {
     );
   }
 
-  // ─── Render ───────────────────────────────────────────────────────────────────
   return (
     <div style={{ padding: '2rem' }}>
       <style>{`
@@ -536,7 +478,6 @@ const updateQuantity = async (categoryId, medicine, delta) => {
         .qty-btn:hover:not(:disabled) { filter: brightness(0.9); transform: scale(1.1); }
       `}</style>
 
-      {/* Header */}
       <section className="overview-header">
         <div className="overview-title">
           <h2>Medicine Catalog</h2>
@@ -546,35 +487,24 @@ const updateQuantity = async (categoryId, medicine, delta) => {
           onClick={fetchInventory}
           disabled={loading}
           style={{
-            padding: '0.5rem 1rem',
-            backgroundColor: 'transparent',
-            color: 'var(--accent)',
-            border: '1px solid var(--accent)',
-            borderRadius: '6px',
-            cursor: loading ? 'not-allowed' : 'pointer',
-            fontWeight: '600',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.5rem',
-            opacity: loading ? 0.6 : 1
+            padding: '0.5rem 1rem', backgroundColor: 'transparent',
+            color: 'var(--accent)', border: '1px solid var(--accent)',
+            borderRadius: '6px', cursor: loading ? 'not-allowed' : 'pointer',
+            fontWeight: '600', display: 'flex', alignItems: 'center',
+            gap: '0.5rem', opacity: loading ? 0.6 : 1
           }}
         >
           🔄 Refresh
         </button>
       </section>
 
-      {/* Error banner */}
       {error && (
         <div style={{
-          marginBottom: '1rem',
-          padding: '1rem',
+          marginBottom: '1rem', padding: '1rem',
           backgroundColor: 'rgba(239,68,68,0.1)',
           border: '1px solid rgba(239,68,68,0.3)',
-          borderRadius: '8px',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '0.75rem',
-          color: 'var(--danger)'
+          borderRadius: '8px', display: 'flex',
+          alignItems: 'center', gap: '0.75rem', color: 'var(--danger)'
         }}>
           <AlertCircle size={20} />
           <div style={{ flex: 1 }}>
@@ -583,13 +513,9 @@ const updateQuantity = async (categoryId, medicine, delta) => {
           <button
             onClick={fetchInventory}
             style={{
-              padding: '0.5rem 1rem',
-              backgroundColor: 'var(--danger)',
-              color: 'white',
-              border: 'none',
-              borderRadius: '6px',
-              cursor: 'pointer',
-              fontWeight: '600'
+              padding: '0.5rem 1rem', backgroundColor: 'var(--danger)',
+              color: 'white', border: 'none', borderRadius: '6px',
+              cursor: 'pointer', fontWeight: '600'
             }}
           >
             Retry
@@ -597,17 +523,11 @@ const updateQuantity = async (categoryId, medicine, delta) => {
         </div>
       )}
 
-      {/* Search */}
       <div style={{ marginBottom: '1.5rem' }}>
         <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '0.75rem',
-          padding: '0.75rem 1rem',
-          backgroundColor: 'var(--bg-card)',
-          border: '1px solid var(--border)',
-          borderRadius: '8px',
-          maxWidth: '400px'
+          display: 'flex', alignItems: 'center', gap: '0.75rem',
+          padding: '0.75rem 1rem', backgroundColor: 'var(--bg-card)',
+          border: '1px solid var(--border)', borderRadius: '8px', maxWidth: '400px'
         }}>
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
             stroke="currentColor" strokeWidth="2">
@@ -620,17 +540,13 @@ const updateQuantity = async (categoryId, medicine, delta) => {
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             style={{
-              border: 'none',
-              outline: 'none',
-              width: '100%',
-              fontSize: '0.95rem',
-              background: 'transparent'
+              border: 'none', outline: 'none', width: '100%',
+              fontSize: '0.95rem', background: 'transparent'
             }}
           />
         </div>
       </div>
 
-      {/* Medicine list */}
       {filteredMedicines.length === 0 ? (
         <div className="card" style={{ textAlign: 'center', padding: '3rem' }}>
           <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>📦</div>
@@ -647,20 +563,13 @@ const updateQuantity = async (categoryId, medicine, delta) => {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
           {filteredMedicines.map((category) => (
             <div key={category.id} className="card" style={{ overflow: 'hidden' }}>
-
-              {/* Category header */}
               <div
                 onClick={() => toggleCategory(category.id)}
                 style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  padding: '1rem 1.5rem',
-                  backgroundColor: 'var(--bg-main)',
-                  cursor: 'pointer',
-                  userSelect: 'none',
-                  borderBottom: expandedCategories[category.id]
-                    ? '1px solid var(--border)' : 'none'
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                  padding: '1rem 1.5rem', backgroundColor: 'var(--bg-main)',
+                  cursor: 'pointer', userSelect: 'none',
+                  borderBottom: expandedCategories[category.id] ? '1px solid var(--border)' : 'none'
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
@@ -679,7 +588,6 @@ const updateQuantity = async (categoryId, medicine, delta) => {
                 </span>
               </div>
 
-              {/* Medicine rows */}
               {expandedCategories[category.id] && (
                 <div style={{ padding: '1rem' }}>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
@@ -693,17 +601,12 @@ const updateQuantity = async (categoryId, medicine, delta) => {
                         <div
                           key={medicine.id}
                           style={{
-                            padding: '1rem',
-                            border: '1px solid var(--border)',
-                            borderRadius: '8px',
-                            display: 'flex',
-                            alignItems: 'flex-start',
-                            gap: '1rem',
-                            opacity: isRemoving ? 0.5 : 1,
-                            transition: 'opacity 0.2s'
+                            padding: '1rem', border: '1px solid var(--border)',
+                            borderRadius: '8px', display: 'flex',
+                            alignItems: 'flex-start', gap: '1rem',
+                            opacity: isRemoving ? 0.5 : 1, transition: 'opacity 0.2s'
                           }}
                         >
-                          {/* Image / fallback icon */}
                           {medicine.image ? (
                             <div style={{
                               width: '60px', height: '60px',
@@ -722,16 +625,10 @@ const updateQuantity = async (categoryId, medicine, delta) => {
                             </div>
                           )}
 
-                          {/* Info block */}
                           <div style={{ flex: 1, minWidth: 0 }}>
-
-                            {/* Row 1 – name + price */}
                             <div style={{
-                              display: 'flex',
-                              justifyContent: 'space-between',
-                              alignItems: 'center',
-                              flexWrap: 'wrap',
-                              gap: '0.5rem'
+                              display: 'flex', justifyContent: 'space-between',
+                              alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem'
                             }}>
                               <span style={{ fontWeight: 600, fontSize: '1rem' }}>
                                 {medicine.name}
@@ -741,46 +638,37 @@ const updateQuantity = async (categoryId, medicine, delta) => {
                               </span>
                             </div>
 
-                            {/* Row 2 – description */}
                             {medicine.description && (
                               <p style={{
-                                fontSize: '0.85rem',
-                                color: 'var(--text-muted)',
-                                margin: '0.25rem 0 0 0',
-                                lineHeight: '1.4'
+                                fontSize: '0.85rem', color: 'var(--text-muted)',
+                                margin: '0.25rem 0 0 0', lineHeight: '1.4'
                               }}>
                                 {medicine.description}
                               </p>
                             )}
 
-                            {/* Row 3 – stock toggle + quantity + remove */}
                             <div style={{
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: '0.75rem',
-                              marginTop: '0.75rem',
-                              flexWrap: 'wrap'
+                              display: 'flex', alignItems: 'center', gap: '0.75rem',
+                              marginTop: '0.75rem', flexWrap: 'wrap'
                             }}>
-                              {/* In Stock / Out of Stock toggle */}
+                              {/* Stock toggle — disabled when qty=0 (auto out of stock) */}
                               <button
                                 onClick={() => toggleStock(category.id, medicine)}
-                                disabled={isToggling || isRemoving}
+                                disabled={isToggling || isRemoving || medicine.quantity === 0}
+                                title={medicine.quantity === 0 ? 'Increase quantity to mark as In Stock' : ''}
                                 style={{
-                                  fontSize: '0.85rem',
-                                  padding: '0.3rem 0.85rem',
+                                  fontSize: '0.85rem', padding: '0.3rem 0.85rem',
                                   borderRadius: '6px',
                                   border: `1.5px solid ${medicine.inStock ? '#10b981' : '#ef4444'}`,
-                                  cursor: (isToggling || isRemoving) ? 'not-allowed' : 'pointer',
+                                  cursor: (isToggling || isRemoving || medicine.quantity === 0)
+                                    ? 'not-allowed' : 'pointer',
                                   fontWeight: 600,
                                   backgroundColor: medicine.inStock
                                     ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)',
                                   color: medicine.inStock ? 'var(--success)' : 'var(--danger)',
-                                  opacity: (isToggling || isRemoving) ? 0.6 : 1,
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  gap: '0.35rem',
-                                  flexShrink: 0,
-                                  transition: 'all 0.2s',
+                                  opacity: (isToggling || isRemoving || medicine.quantity === 0) ? 0.6 : 1,
+                                  display: 'flex', alignItems: 'center', gap: '0.35rem',
+                                  flexShrink: 0, transition: 'all 0.2s',
                                 }}
                               >
                                 {isToggling
@@ -790,34 +678,22 @@ const updateQuantity = async (categoryId, medicine, delta) => {
                                 {medicine.inStock ? 'In Stock' : 'Out of Stock'}
                               </button>
 
-                              {/* Quantity control */}
-                              <QuantityControl
-                                categoryId={category.id}
-                                medicine={medicine}
-                              />
+                              <QuantityControl categoryId={category.id} medicine={medicine} />
 
-                              {/* Spacer */}
                               <div style={{ flex: 1 }} />
 
-                              {/* Remove button */}
                               <button
                                 onClick={() => removeMedicine(category.id, medicine)}
                                 disabled={isToggling || isRemoving}
                                 style={{
-                                  padding: '0.3rem 0.85rem',
-                                  borderRadius: '6px',
+                                  padding: '0.3rem 0.85rem', borderRadius: '6px',
                                   border: '1.5px solid var(--danger)',
-                                  backgroundColor: 'transparent',
-                                  color: 'var(--danger)',
+                                  backgroundColor: 'transparent', color: 'var(--danger)',
                                   cursor: (isToggling || isRemoving) ? 'not-allowed' : 'pointer',
-                                  fontSize: '0.85rem',
-                                  fontWeight: 600,
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  gap: '0.35rem',
+                                  fontSize: '0.85rem', fontWeight: 600,
+                                  display: 'flex', alignItems: 'center', gap: '0.35rem',
                                   opacity: (isToggling || isRemoving) ? 0.6 : 1,
-                                  flexShrink: 0,
-                                  transition: 'all 0.2s',
+                                  flexShrink: 0, transition: 'all 0.2s',
                                 }}
                               >
                                 {isRemoving
@@ -828,11 +704,9 @@ const updateQuantity = async (categoryId, medicine, delta) => {
                               </button>
                             </div>
 
-                            {/* Row 4 – Prescription badge */}
                             <div style={{ marginTop: '0.6rem' }}>
                               <PrescriptionBadge value={medicine.requiresPrescription} />
                             </div>
-
                           </div>
                         </div>
                       );
