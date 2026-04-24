@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { TrendingUp, Package, Layers, Pill } from 'lucide-react';
 import StatCard from './StatCard';
 
+const API_BASE = 'http://165.22.91.187:5000/api/PharmacyOrder';
+
 const MedicineProgress = ({ name, progress, sales }) => (
   <div className="medicine-item">
     <div className="med-icon">
@@ -24,6 +26,7 @@ const DashboardHome = ({ onNavigate }) => {
   const [recentOrders, setRecentOrders] = useState([]);
   const [totalOrders, setTotalOrders] = useState(0);
   const [totalMedicines, setTotalMedicines] = useState(0);
+  const [loading, setLoading] = useState(false);
 
   const [topMedicines] = useState([
     { name: 'Panadol', progress: 85, sales: 342 },
@@ -33,49 +36,104 @@ const DashboardHome = ({ onNavigate }) => {
     { name: 'Amoxicillin', progress: 30, sales: 89 }
   ]);
 
+  // ─── Auth header ──────────────────────────────────────────────────────────
+  const authHeader = () => {
+    const token =
+      localStorage.getItem('token')        ||
+      localStorage.getItem('authToken')    ||
+      localStorage.getItem('access_token') ||
+      sessionStorage.getItem('token')      ||
+      sessionStorage.getItem('authToken')  || '';
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  };
+
+  // ─── Field normalisers (same as Orders component) ─────────────────────────
+  const getId        = o => o.id;
+  const getName      = o => o.patientName   ?? '—';
+  const getTotal     = o => o.totalPrice != null ? `$${(Number(o.totalPrice) - 2).toFixed(2)}` : '—';
+  const getStatus    = o => o.status        ?? '—';
+  const getDate      = o => o.createdAt     ?? null;
+
+  // ─── Parse response ───────────────────────────────────────────────────────
+  const toList = (data) => {
+    if (Array.isArray(data))              return data;
+    if (Array.isArray(data?.orders))      return data.orders;
+    if (Array.isArray(data?.data))        return data.data;
+    if (Array.isArray(data?.result))      return data.result;
+    if (Array.isArray(data?.results))     return data.results;
+    if (Array.isArray(data?.records))     return data.records;
+    if (data && typeof data === 'object') return [data];
+    return [];
+  };
+
+  // ─── Clock ────────────────────────────────────────────────────────────────
   useEffect(() => {
     const timer = setInterval(() => {
       setCurrentTime(new Date());
     }, 60000);
-
     return () => clearInterval(timer);
   }, []);
 
-  // Load orders and count medicines
+  // ─── Load orders from API ─────────────────────────────────────────────────
   useEffect(() => {
     loadOrders();
     countMedicines();
   }, []);
 
-  const loadOrders = () => {
-    // Load from localStorage or use default data
-    const savedOrders = localStorage.getItem('allOrders');
-    
-    if (savedOrders) {
-      try {
-        const orders = JSON.parse(savedOrders);
-        setRecentOrders(orders);
-        setTotalOrders(orders.length);
-      } catch (e) {
-        console.error('Failed to load orders:', e);
-        setDefaultOrders();
-      }
-    } else {
-      setDefaultOrders();
-    }
-  };
+  const loadOrders = async () => {
+    setLoading(true);
+    try {
+      // Fetch both active and history to get all orders
+      const [activeRes, historyRes] = await Promise.all([
+        fetch(`${API_BASE}/active`, {
+          method: 'GET',
+          headers: { Accept: 'application/json', ...authHeader() },
+        }).catch(() => ({ ok: false })),
+        fetch(`${API_BASE}/history`, {
+          method: 'GET',
+          headers: { Accept: 'application/json', ...authHeader() },
+        }).catch(() => ({ ok: false })),
+      ]);
 
-  const setDefaultOrders = () => {
-    const defaultOrders = [
-      { id: '#ORD-2841', name: 'James Miller', status: 'Pending', amount: '$142.00', date: '2024-02-05T10:30:00' },
-      { id: '#ORD-2839', name: 'Thomas Shelby', status: 'Completed', amount: '$210.80', date: '2024-02-04T14:20:00' },
-      { id: '#ORD-2838', name: 'Arthur Shelby', status: 'Completed', amount: '$85.00', date: '2024-02-04T09:15:00' },
-      { id: '#ORD-2837', name: 'John Doe', status: 'Pending', amount: '$45.20', date: '2024-02-03T16:45:00' },
-      { id: '#ORD-2836', name: 'Sarah Wilson', status: 'Processing', amount: '$178.50', date: '2024-02-03T11:00:00' }
-    ];
-    setRecentOrders(defaultOrders);
-    setTotalOrders(defaultOrders.length);
-    localStorage.setItem('allOrders', JSON.stringify(defaultOrders));
+      let allOrders = [];
+
+      if (activeRes.ok) {
+        const activeText = await activeRes.text();
+        if (activeText.trim()) {
+          const activeData = JSON.parse(activeText);
+          allOrders = [...allOrders, ...toList(activeData)];
+        }
+      }
+
+      if (historyRes.ok) {
+        const historyText = await historyRes.text();
+        if (historyText.trim()) {
+          const historyData = JSON.parse(historyText);
+          const historyList = toList(historyData);
+          
+          // Deduplicate by ID
+          const existingIds = new Set(allOrders.map(o => getId(o)));
+          historyList.forEach(order => {
+            if (!existingIds.has(getId(order))) {
+              allOrders.push(order);
+            }
+          });
+        }
+      }
+
+      // Sort by date (newest first)
+      allOrders.sort((a, b) => new Date(getDate(b)) - new Date(getDate(a)));
+
+      setRecentOrders(allOrders);
+      setTotalOrders(allOrders.length);
+
+    } catch (err) {
+      console.error('Failed to load orders:', err);
+      setRecentOrders([]);
+      setTotalOrders(0);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const countMedicines = () => {
@@ -109,10 +167,17 @@ const DashboardHome = ({ onNavigate }) => {
     return date.toLocaleDateString('en-US', options).replace(',', ' at');
   };
 
-  // Sort orders by date (newest first)
-  const sortedOrders = [...recentOrders].sort((a, b) => 
-    new Date(b.date) - new Date(a.date)
-  );
+  const formatDate = (val) =>
+    val ? new Date(val).toLocaleDateString('en-US', {
+      year: 'numeric', month: 'short', day: '2-digit',
+    }) : '—';
+
+  const statusClass = (s) =>
+    s === 'Pending'   ? 'status-pending'   :
+    s === 'Completed' ? 'status-completed' :
+    s === 'Rejected'  ? 'status-rejected'  :
+    s === 'Ready'     ? 'status-completed' :
+    'status-processing';
 
   return (
     <>
@@ -144,7 +209,7 @@ const DashboardHome = ({ onNavigate }) => {
         />
       </section>
 
-      {/* Two Column Layout for Recent Orders and Top Medicines */}
+      {/* Two Column Layout */}
       <div className="content-row">
         {/* Recent Orders - Left Side */}
         <section className="card">
@@ -176,38 +241,56 @@ const DashboardHome = ({ onNavigate }) => {
               <thead>
                 <tr>
                   <th>Order ID</th>
-                  <th>Customer</th>
+                  <th>Patient</th>
                   <th>Date</th>
                   <th>Status</th>
                   <th>Amount</th>
                 </tr>
               </thead>
               <tbody>
-                {sortedOrders.slice(0, 5).map((order) => (
-                  <tr 
-                    key={order.id}
-                    onClick={() => onNavigate && onNavigate('orders')}
-                    style={{ cursor: 'pointer' }}
-                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--bg-main)'}
-                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-                  > 
-                    <td style={{fontWeight: 600}}>{order.id}</td>
-                    <td>{order.name}</td>
-                    <td style={{fontSize: '0.85rem', color: 'var(--text-muted)'}}>
-                      {new Date(order.date).toLocaleDateString()}
+                {loading ? (
+                  <tr>
+                    <td colSpan={5} style={{
+                      textAlign: 'center',
+                      padding: '2rem',
+                      color: 'var(--text-muted)',
+                    }}>
+                      Loading orders…
                     </td>
-                    <td>
-                      <span className={`status-badge ${
-                        order.status === 'Pending' ? 'status-pending' : 
-                        order.status === 'Completed' ? 'status-completed' : 
-                        'status-processing'
-                      }`}>
-                        {order.status}
-                      </span>
-                    </td>
-                    <td style={{fontWeight: 600}}>{order.amount}</td>
                   </tr>
-                ))}
+                ) : recentOrders.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} style={{
+                      textAlign: 'center',
+                      padding: '2rem',
+                      color: 'var(--text-muted)',
+                    }}>
+                      No orders found
+                    </td>
+                  </tr>
+                ) : (
+                  recentOrders.slice(0, 5).map((order) => (
+                    <tr 
+                      key={getId(order)}
+                      onClick={() => onNavigate && onNavigate('orders')}
+                      style={{ cursor: 'pointer' }}
+                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--bg-main)'}
+                      onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                    > 
+                      <td style={{fontWeight: 600}}>#{getId(order)}</td>
+                      <td>{getName(order)}</td>
+                      <td style={{fontSize: '0.85rem', color: 'var(--text-muted)'}}>
+                        {formatDate(getDate(order))}
+                      </td>
+                      <td>
+                        <span className={`status-badge ${statusClass(getStatus(order))}`}>
+                          {getStatus(order)}
+                        </span>
+                      </td>
+                      <td style={{fontWeight: 600}}>{getTotal(order)}</td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
