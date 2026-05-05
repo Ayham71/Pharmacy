@@ -9,10 +9,30 @@ function App() {
   const [userData, setUserData] = useState(null);
 
   useEffect(() => {
-    const token = localStorage.getItem('authToken');
-    if (token) {
-      setIsLoggedIn(true);
-    }
+    // Clear all auth data on app load to always start with login page
+    const clearAuthData = () => {
+      localStorage.removeItem('authToken');
+      localStorage.removeItem('userData');
+      localStorage.removeItem('pharmacyName');
+      localStorage.removeItem('userRole');
+      localStorage.removeItem('userEmail');
+      localStorage.removeItem('userId');
+      localStorage.removeItem('userUsername');
+    };
+
+    // Clear on page load
+    clearAuthData();
+
+    // Handle page close/refresh - logout immediately
+    const handleBeforeUnload = () => {
+      clearAuthData();
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
   }, []);
 
   const handleLogin = (data) => {
