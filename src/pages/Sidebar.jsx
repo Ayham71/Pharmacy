@@ -35,7 +35,7 @@ const Sidebar = ({
     { id: 'dashboard',    icon: <LayoutDashboard size={20} />, label: 'Dashboard'         },
     { id: 'orders',       icon: <ShoppingBag     size={20} />, label: 'Orders'            },
     { id: 'catalog',      icon: <Database        size={20} />, label: 'Medicine Catalog'  },
-    { id: 'globalCatalog',icon: <Globe           size={20} />, label: 'Global Catalog'    },
+    { id: 'globalCatalog',icon: <Globe           size={20} />, label: 'Central Warehouse'    },
     { id: 'reports',      icon: <BarChart3       size={20} />, label: 'Financial Reports' },
     { id: 'settings',     icon: <Settings        size={20} />, label: 'Settings'          },
   ];
@@ -56,7 +56,7 @@ const Sidebar = ({
       {/* ── Logo ─────────────────────────────────────────────────────────── */}
       <div className="logo-section">
         <div className="logo-icon">
-          <img src="/logo.jpeg" alt="Logo" style={{ width: 70, height: 70 }} />
+          <img src="/logo.png" alt="Logo" style={{ width: 70, height: 70 }} />
         </div>
         <div className="logo-text">
           <h1>PharmaAdmin</h1>

@@ -99,7 +99,7 @@ const Login = ({ onLogin }) => {
         {/* Pharmacy Icon */}
         <div className="icon-wrapper">
           <div className="icon-box">
-            <img src="/logo.jpeg" alt="Pharmacy Icon" />
+            <img src="/logo.png" alt="Pharmacy Icon" />
           </div>
         </div>
 
