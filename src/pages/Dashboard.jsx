@@ -4,7 +4,7 @@ import Header from './Header';
 import DashboardHome from './DashboardHome';
 import Orders from './Orders';
 import MedicineCatalog from './MedicineCatalog';
-import GlobalCatalog from './GlobalCatalog';
+import CentralWarehouse from './CentralWarehouse';
 import FinancialReports from './FinancialReports';
 import Settings from './Settings';
 
@@ -253,10 +253,10 @@ const handleToggleSwitch = async () => {
 
         {activeMenu === 'dashboard'     && <DashboardHome onNavigate={setActiveMenu} />}
         {activeMenu === 'orders'        && <Orders />}
-        {activeMenu === 'catalog'       && <MedicineCatalog />}
-        {activeMenu === 'globalCatalog' && <GlobalCatalog />}
-        {activeMenu === 'reports'       && <FinancialReports />}
-        {activeMenu === 'settings'      && (
+        {activeMenu === 'catalog'           && <MedicineCatalog />}
+        {activeMenu === 'centralWarehouse'  && <CentralWarehouse />}
+        {activeMenu === 'reports'           && <FinancialReports />}
+        {activeMenu === 'settings'          && (
           <Settings
             pharmacyProfile={pharmacyProfile}
             reloadProfile={loadPharmacyProfile}

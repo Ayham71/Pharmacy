@@ -34,9 +34,9 @@ const Sidebar = ({
   const navItems = [
     { id: 'dashboard',    icon: <LayoutDashboard size={20} />, label: 'Dashboard'         },
     { id: 'orders',       icon: <ShoppingBag     size={20} />, label: 'Orders'            },
-    { id: 'catalog',      icon: <Database        size={20} />, label: 'Medicine Catalog'  },
-    { id: 'globalCatalog',icon: <Globe           size={20} />, label: 'Central Warehouse'    },
-    { id: 'reports',      icon: <BarChart3       size={20} />, label: 'Financial Reports' },
+    { id: 'catalog',          icon: <Database        size={20} />, label: 'Medicine Catalog'  },
+    { id: 'centralWarehouse', icon: <Globe           size={20} />, label: 'Central Warehouse'    },
+    { id: 'reports',           icon: <BarChart3       size={20} />, label: 'Financial Reports' },
     { id: 'settings',     icon: <Settings        size={20} />, label: 'Settings'          },
   ];
 
