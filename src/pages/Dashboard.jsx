@@ -246,6 +246,7 @@ const handleToggleSwitch = async () => {
         isPharmacyOpen={isPharmacyOpen}
         isToggling={isToggling}
         onToggleSwitch={handleToggleSwitch}
+        pharmacyProfile={pharmacyProfile}
       />
 
       <main className="main-content">
