@@ -12,10 +12,12 @@ const MedicineProgress = ({ name, progress, sales }) => (
     <div className="med-info">
       <div className="med-name-row">
         <span>{name}</span>
-        <span style={{color: 'var(--accent)', fontWeight: 600}}>{sales} sold</span>
+        <span style={{ color: 'var(--accent)', fontWeight: 600 }}>
+          {sales} sold
+        </span>
       </div>
       <div className="progress-bar">
-        <div className="progress-fill" style={{ width: `${progress}%` }}></div>
+        <div className="progress-fill" style={{ width: `${progress}%` }} />
       </div>
     </div>
   </div>
@@ -26,55 +28,57 @@ const DashboardHome = ({ onNavigate }) => {
   const [recentOrders, setRecentOrders] = useState([]);
   const [totalOrders, setTotalOrders] = useState(0);
   const [totalMedicines, setTotalMedicines] = useState(0);
+  const [totalSales, setTotalSales] = useState(0);
+  const [topMedicines, setTopMedicines] = useState([]);
   const [loading, setLoading] = useState(false);
-
-  const [topMedicines] = useState([
-    { name: 'Panadol', progress: 85, sales: 342 },
-    { name: 'Aspirin', progress: 65, sales: 256 },
-    { name: 'Vitamin D3', progress: 58, sales: 198 },
-    { name: 'Ibuprofen', progress: 42, sales: 145 },
-    { name: 'Amoxicillin', progress: 30, sales: 89 }
-  ]);
 
   // ─── Auth header ──────────────────────────────────────────────────────────
   const authHeader = () => {
     const token =
-      localStorage.getItem('token')        ||
-      localStorage.getItem('authToken')    ||
+      localStorage.getItem('token') ||
+      localStorage.getItem('authToken') ||
       localStorage.getItem('access_token') ||
-      sessionStorage.getItem('token')      ||
-      sessionStorage.getItem('authToken')  || '';
+      sessionStorage.getItem('token') ||
+      sessionStorage.getItem('authToken') || '';
     return token ? { Authorization: `Bearer ${token}` } : {};
   };
 
-  // ─── Field normalisers (same as Orders component) ─────────────────────────
-  const getId        = o => o.id;
-  const getName      = o => o.patientName   ?? '—';
-  const getTotal     = o => o.totalPrice != null ? `$${(Number(o.totalPrice) - 2).toFixed(2)}` : '—';
-  const getStatus    = o => o.status        ?? '—';
-  const getDate      = o => o.createdAt     ?? null;
+  // ─── Field helpers ────────────────────────────────────────────────────────
+  const getId     = o => o.id;
+  const getName   = o => o.patientName ?? '—';
+  const getStatus = o => o.status ?? '—';
+  const getDate   = o => o.createdAt ?? null;
+  const getItems  = o => Array.isArray(o.orderItems) ? o.orderItems : [];
+
+  // Total price: subtract 2 like Orders page does for display
+  const getTotalDisplay = o =>
+    o.totalPrice != null
+      ? `$${(Number(o.totalPrice) - 2).toFixed(2)}`
+      : '—';
+
+  // Raw numeric total for calculations
+  const getTotalRaw = o =>
+    o.totalPrice != null ? Number(o.totalPrice) : 0;
 
   // ─── Parse response ───────────────────────────────────────────────────────
   const toList = (data) => {
-    if (Array.isArray(data))              return data;
-    if (Array.isArray(data?.orders))      return data.orders;
-    if (Array.isArray(data?.data))        return data.data;
-    if (Array.isArray(data?.result))      return data.result;
-    if (Array.isArray(data?.results))     return data.results;
-    if (Array.isArray(data?.records))     return data.records;
+    if (Array.isArray(data)) return data;
+    if (Array.isArray(data?.orders)) return data.orders;
+    if (Array.isArray(data?.data)) return data.data;
+    if (Array.isArray(data?.result)) return data.result;
+    if (Array.isArray(data?.results)) return data.results;
+    if (Array.isArray(data?.records)) return data.records;
     if (data && typeof data === 'object') return [data];
     return [];
   };
 
   // ─── Clock ────────────────────────────────────────────────────────────────
   useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrentTime(new Date());
-    }, 60000);
+    const timer = setInterval(() => setCurrentTime(new Date()), 60000);
     return () => clearInterval(timer);
   }, []);
 
-  // ─── Load orders from API ─────────────────────────────────────────────────
+  // ─── Load orders ──────────────────────────────────────────────────────────
   useEffect(() => {
     loadOrders();
     countMedicines();
@@ -83,14 +87,11 @@ const DashboardHome = ({ onNavigate }) => {
   const loadOrders = async () => {
     setLoading(true);
     try {
-      // Fetch both active and history to get all orders
       const [activeRes, historyRes] = await Promise.all([
         fetch(`${API_BASE}/active`, {
-          method: 'GET',
           headers: { Accept: 'application/json', ...authHeader() },
         }).catch(() => ({ ok: false })),
         fetch(`${API_BASE}/history`, {
-          method: 'GET',
           headers: { Accept: 'application/json', ...authHeader() },
         }).catch(() => ({ ok: false })),
       ]);
@@ -98,74 +99,95 @@ const DashboardHome = ({ onNavigate }) => {
       let allOrders = [];
 
       if (activeRes.ok) {
-        const activeText = await activeRes.text();
-        if (activeText.trim()) {
-          const activeData = JSON.parse(activeText);
-          allOrders = [...allOrders, ...toList(activeData)];
-        }
+        const text = await activeRes.text();
+        if (text.trim()) allOrders = [...toList(JSON.parse(text))];
       }
 
       if (historyRes.ok) {
-        const historyText = await historyRes.text();
-        if (historyText.trim()) {
-          const historyData = JSON.parse(historyText);
-          const historyList = toList(historyData);
-          
-          // Deduplicate by ID
+        const text = await historyRes.text();
+        if (text.trim()) {
+          const historyList = toList(JSON.parse(text));
           const existingIds = new Set(allOrders.map(o => getId(o)));
-          historyList.forEach(order => {
-            if (!existingIds.has(getId(order))) {
-              allOrders.push(order);
-            }
+          historyList.forEach(o => {
+            if (!existingIds.has(getId(o))) allOrders.push(o);
           });
         }
       }
 
-      // Sort by date (newest first)
-      allOrders.sort((a, b) => new Date(getDate(b)) - new Date(getDate(a)));
+      // Sort newest first
+      allOrders.sort((a, b) =>
+        new Date(getDate(b)) - new Date(getDate(a))
+      );
 
       setRecentOrders(allOrders);
       setTotalOrders(allOrders.length);
+
+      // ── Calculate total sales (only completed orders) ──
+      const completedOrders = allOrders.filter(
+        o => getStatus(o) === 'Delivered'
+      );
+      const sales = completedOrders.reduce(
+        (sum, o) => sum + getTotalRaw(o), 0
+      );
+      setTotalSales(sales);
+
+      // ── Calculate top 5 medicines ──
+      const medicineMap = {};
+      allOrders.forEach(order => {
+        getItems(order).forEach(item => {
+          const name = item.medicationName ?? 'Unknown';
+          const qty  = Number(item.quantity) || 0;
+          if (!medicineMap[name]) medicineMap[name] = 0;
+          medicineMap[name] += qty;
+        });
+      });
+
+      // Sort by quantity sold
+      const sorted = Object.entries(medicineMap)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 5);
+
+      // Calculate progress relative to top seller
+      const maxSales = sorted[0]?.[1] || 1;
+      const top5 = sorted.map(([name, sales]) => ({
+        name,
+        sales,
+        progress: Math.round((sales / maxSales) * 100),
+      }));
+
+      setTopMedicines(top5);
 
     } catch (err) {
       console.error('Failed to load orders:', err);
       setRecentOrders([]);
       setTotalOrders(0);
+      setTotalSales(0);
+      setTopMedicines([]);
     } finally {
       setLoading(false);
     }
   };
 
   const countMedicines = () => {
-    const savedMedicines = localStorage.getItem('pharmacyMedicines');
-    
-    if (savedMedicines) {
+    const saved = localStorage.getItem('pharmacyMedicines');
+    if (saved) {
       try {
-        const medicines = JSON.parse(savedMedicines);
-        const count = medicines.reduce((total, category) => {
-          return total + category.medicines.length;
-        }, 0);
+        const medicines = JSON.parse(saved);
+        const count = medicines.reduce(
+          (total, cat) => total + cat.medicines.length, 0
+        );
         setTotalMedicines(count);
-      } catch (e) {
-        console.error('Failed to count medicines:', e);
+      } catch {
         setTotalMedicines(0);
       }
-    } else {
-      setTotalMedicines(0);
     }
   };
 
-  const formatDateTime = (date) => {
-    const options = { 
-      month: 'short', 
-      day: '2-digit', 
-      year: 'numeric',
-      hour: '2-digit', 
-      minute: '2-digit',
-      hour12: true 
-    };
-    return date.toLocaleDateString('en-US', options).replace(',', ' at');
-  };
+  const formatDateTime = (date) =>
+    date.toLocaleDateString('en-US', {
+      month: 'short', day: '2-digit', year: 'numeric',
+      hour: '2-digit', minute: '2-digit', hour12: true,
+    }).replace(',', ' at');
 
   const formatDate = (val) =>
     val ? new Date(val).toLocaleDateString('en-US', {
@@ -179,6 +201,10 @@ const DashboardHome = ({ onNavigate }) => {
     s === 'Ready'     ? 'status-completed' :
     'status-processing';
 
+  // Total units sold across all medicines
+  const totalUnitsSold = topMedicines.reduce((sum, m) => sum + m.sales, 0);
+
+  // =========================================================================
   return (
     <>
       <section className="overview-header">
@@ -188,30 +214,33 @@ const DashboardHome = ({ onNavigate }) => {
         </div>
       </section>
 
+      {/* ── Stats ── */}
       <section className="stats-grid">
-        <StatCard 
-          title="Total Sales" 
-          value="$14,250.00"  
-          icon={TrendingUp} 
+        <StatCard
+          title="Total Sales"
+          value={`$${totalSales.toLocaleString('en-US', {
+            minimumFractionDigits: 2 })}`}
+          icon={TrendingUp}
           colorClass="sales"
         />
-        <StatCard 
-          title="Orders" 
-          value={totalOrders.toString()} 
-          icon={Package} 
+        <StatCard
+          title="Orders"
+          value={totalOrders.toString()}
+          icon={Package}
           colorClass="orders"
         />
-        <StatCard 
-          title="Items" 
-          value={totalMedicines.toString()}  
-          icon={Layers} 
+        <StatCard
+          title="Items"
+          value={totalMedicines.toString()}
+          icon={Layers}
           colorClass="items"
         />
       </section>
 
-      {/* Two Column Layout */}
+      {/* ── Two Column Layout ── */}
       <div className="content-row">
-        {/* Recent Orders - Left Side */}
+
+        {/* ── Recent Orders ── */}
         <section className="card">
           <div className="card-title">
             Recent Orders
@@ -219,23 +248,20 @@ const DashboardHome = ({ onNavigate }) => {
               role="button"
               tabIndex={0}
               onClick={() => onNavigate && onNavigate('orders')}
-              onKeyPress={(e) => { 
-                if (e.key === 'Enter' || e.key === ' ') {
+              onKeyPress={(e) => {
+                if (e.key === 'Enter' || e.key === ' ')
                   onNavigate && onNavigate('orders');
-                }
               }}
               style={{
-                color: 'var(--accent)', 
-                fontSize: '0.85rem', 
-                cursor: 'pointer', 
-                fontWeight: 500,
-                textDecoration: 'underline',
-                marginLeft: '1.5rem'
+                color: 'var(--accent)', fontSize: '0.85rem',
+                cursor: 'pointer', fontWeight: 500,
+                textDecoration: 'underline', marginLeft: '1.5rem',
               }}
             >
               View All Orders →
             </span>
           </div>
+
           <div className="table-container">
             <table>
               <thead>
@@ -250,44 +276,44 @@ const DashboardHome = ({ onNavigate }) => {
               <tbody>
                 {loading ? (
                   <tr>
-                    <td colSpan={5} style={{
-                      textAlign: 'center',
-                      padding: '2rem',
-                      color: 'var(--text-muted)',
-                    }}>
+                    <td colSpan={5} style={{ textAlign: 'center',
+                      padding: '2rem', color: 'var(--text-muted)' }}>
                       Loading orders…
                     </td>
                   </tr>
                 ) : recentOrders.length === 0 ? (
                   <tr>
-                    <td colSpan={5} style={{
-                      textAlign: 'center',
-                      padding: '2rem',
-                      color: 'var(--text-muted)',
-                    }}>
+                    <td colSpan={5} style={{ textAlign: 'center',
+                      padding: '2rem', color: 'var(--text-muted)' }}>
                       No orders found
                     </td>
                   </tr>
                 ) : (
                   recentOrders.slice(0, 5).map((order) => (
-                    <tr 
+                    <tr
                       key={getId(order)}
                       onClick={() => onNavigate && onNavigate('orders')}
                       style={{ cursor: 'pointer' }}
-                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--bg-main)'}
-                      onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-                    > 
-                      <td style={{fontWeight: 600}}>#{getId(order)}</td>
+                      onMouseEnter={e =>
+                        e.currentTarget.style.backgroundColor = 'var(--bg-main)'}
+                      onMouseLeave={e =>
+                        e.currentTarget.style.backgroundColor = 'transparent'}
+                    >
+                      <td style={{ fontWeight: 600 }}>#{getId(order)}</td>
                       <td>{getName(order)}</td>
-                      <td style={{fontSize: '0.85rem', color: 'var(--text-muted)'}}>
+                      <td style={{ fontSize: '0.85rem',
+                        color: 'var(--text-muted)' }}>
                         {formatDate(getDate(order))}
                       </td>
                       <td>
-                        <span className={`status-badge ${statusClass(getStatus(order))}`}>
+                        <span className={`status-badge ${
+                          statusClass(getStatus(order))}`}>
                           {getStatus(order)}
                         </span>
                       </td>
-                      <td style={{fontWeight: 600}}>{getTotal(order)}</td>
+                      <td style={{ fontWeight: 600 }}>
+                        {getTotalDisplay(order)}
+                      </td>
                     </tr>
                   ))
                 )}
@@ -296,37 +322,51 @@ const DashboardHome = ({ onNavigate }) => {
           </div>
         </section>
 
-        {/* Top Medicines - Right Side */}
+        {/* ── Top 5 Medicines ── */}
         <section className="card">
           <div className="card-title">
             Top 5 Medicines
-            <span style={{fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 400}}>
+            <span style={{ fontSize: '0.75rem',
+              color: 'var(--text-muted)', fontWeight: 400 }}>
               <br />Best sellers this week
             </span>
           </div>
+
           <div className="medicine-list">
-            {topMedicines.map((medicine, index) => (
-              <MedicineProgress 
-                key={index}
-                name={medicine.name} 
-                progress={medicine.progress}
-                sales={medicine.sales}
-              />
-            ))}
+            {loading ? (
+              <div style={{ textAlign: 'center', padding: '2rem',
+                color: 'var(--text-muted)', fontSize: '0.9rem' }}>
+                Loading medicines…
+              </div>
+            ) : topMedicines.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '2rem',
+                color: 'var(--text-muted)', fontSize: '0.9rem' }}>
+                No medicine data yet
+              </div>
+            ) : (
+              topMedicines.map((medicine, index) => (
+                <MedicineProgress
+                  key={index}
+                  name={medicine.name}
+                  progress={medicine.progress}
+                  sales={medicine.sales}
+                />
+              ))
+            )}
           </div>
+
           <div style={{
-            marginTop: '1.5rem',
-            paddingTop: '1rem',
+            marginTop: '1.5rem', paddingTop: '1rem',
             borderTop: '1px solid var(--border)',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center'
+            display: 'flex', justifyContent: 'space-between',
+            alignItems: 'center',
           }}>
-            <span style={{fontSize: '0.85rem', color: 'var(--text-muted)'}}>
+            <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
               Total Units Sold
             </span>
-            <span style={{fontSize: '1.25rem', fontWeight: 700, color: 'var(--accent)'}}>
-              1,030
+            <span style={{ fontSize: '1.25rem', fontWeight: 700,
+              color: 'var(--accent)' }}>
+              {totalUnitsSold.toLocaleString()}
             </span>
           </div>
         </section>
