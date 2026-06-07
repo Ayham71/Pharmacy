@@ -272,7 +272,6 @@ const FinancialReports = () => {
             />
           </section>
 
-
           {/* ════════════════════════════════════════════════════════
               SETTLEMENT SECTION - money due from admin
           ════════════════════════════════════════════════════════ */}
@@ -459,7 +458,7 @@ const FinancialReports = () => {
                     {/* Footer total */}
                     <tfoot>
                       <tr style={{ borderTop: '2px solid var(--border,rgba(255,255,255,0.1))' }}>
-                       <td colSpan={4} style={{ padding: '12px',
+                       <td colSpan={3} style={{ padding: '12px',
                           fontWeight: '700', color: '#9ca3af',
                           fontSize: '12px' }}>
                           TOTAL ({orders.length} orders)
@@ -517,7 +516,7 @@ const FinancialReports = () => {
                   <thead>
                     <tr>
                       {['#', 'Order ID', 'Patient', 'Items',
-                        'Total', 'Status', 'Date'].map(col => (
+                        'Status', 'Date'].map(col => (
                         <th key={col} style={{
                           padding: '10px 12px', textAlign: 'left',
                           fontSize: '11px', fontWeight: '700',
@@ -554,10 +553,6 @@ const FinancialReports = () => {
                           <td style={{ padding: '12px', color: '#9ca3af' }}>
                             {getItems(o).length} items
                           </td>
-                          <td style={{ padding: '12px', fontWeight: '700',
-                            color: 'var(--accent,#f59e0b)' }}>
-                            ${getRaw(o).toFixed(2)}
-                          </td>
                           <td style={{ padding: '12px' }}>
                             <span style={{
                               display: 'inline-block',
@@ -582,21 +577,6 @@ const FinancialReports = () => {
                       )
                     })}
                   </tbody>
-                  <tfoot>
-                    <tr style={{ borderTop: '2px solid var(--border,rgba(255,255,255,0.1))' }}>
-                      <td colSpan={4} style={{ padding: '12px',
-                        fontWeight: '700', color: '#9ca3af',
-                        fontSize: '12px' }}>
-                        TOTAL ({orders.length} orders)
-                      </td>
-                      <td style={{ padding: '12px', fontWeight: '700',
-                        color: 'var(--accent,#f59e0b)' }}>
-                        ${orders.reduce((sum, o) =>
-                          sum + getRaw(o), 0).toFixed(2)}
-                      </td>
-                      <td colSpan={2} />
-                    </tr>
-                  </tfoot>
                 </table>
               </div>
             )}
