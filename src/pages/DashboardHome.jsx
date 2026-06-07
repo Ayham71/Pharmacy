@@ -4,6 +4,12 @@ import StatCard from './StatCard';
 
 const API_BASE = 'http://165.22.91.187:5000/api/PharmacyOrder';
 
+const DONE_STATUSES = [
+  'Delivered', 'delivered',
+  'Completed', 'completed',
+  'Ready',     'ready',
+];
+
 const MedicineProgress = ({ name, progress, sales }) => (
   <div className="medicine-item">
     <div className="med-icon">
@@ -24,13 +30,18 @@ const MedicineProgress = ({ name, progress, sales }) => (
 );
 
 const DashboardHome = ({ onNavigate }) => {
-  const [currentTime, setCurrentTime] = useState(new Date());
-  const [recentOrders, setRecentOrders] = useState([]);
-  const [totalOrders, setTotalOrders] = useState(0);
+  const [currentTime, setCurrentTime]     = useState(new Date());
+  const [recentOrders, setRecentOrders]   = useState([]);
+  const [totalOrders, setTotalOrders]     = useState(0);
   const [totalMedicines, setTotalMedicines] = useState(0);
-  const [totalSales, setTotalSales] = useState(0);
-  const [topMedicines, setTopMedicines] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [totalSales, setTotalSales]       = useState(0);
+  const [topMedicines, setTopMedicines]   = useState([]);
+  const [loading, setLoading]             = useState(false);
+
+  // ─── Status counts ────────────────────────────────────────────────────────
+  const [deliveredCount, setDeliveredCount] = useState(0);
+  const [pendingCount, setPendingCount]     = useState(0);
+  const [rejectedCount, setRejectedCount]   = useState(0);
 
   // ─── Auth header ──────────────────────────────────────────────────────────
   const authHeader = () => {
@@ -50,24 +61,22 @@ const DashboardHome = ({ onNavigate }) => {
   const getDate   = o => o.createdAt ?? null;
   const getItems  = o => Array.isArray(o.orderItems) ? o.orderItems : [];
 
-  // Total price: subtract 2 like Orders page does for display
   const getTotalDisplay = o =>
     o.totalPrice != null
       ? `$${(Number(o.totalPrice) - 2).toFixed(2)}`
       : '—';
 
-  // Raw numeric total for calculations
   const getTotalRaw = o =>
     o.totalPrice != null ? Number(o.totalPrice) : 0;
 
   // ─── Parse response ───────────────────────────────────────────────────────
   const toList = (data) => {
-    if (Array.isArray(data)) return data;
-    if (Array.isArray(data?.orders)) return data.orders;
-    if (Array.isArray(data?.data)) return data.data;
-    if (Array.isArray(data?.result)) return data.result;
-    if (Array.isArray(data?.results)) return data.results;
-    if (Array.isArray(data?.records)) return data.records;
+    if (Array.isArray(data))           return data;
+    if (Array.isArray(data?.orders))   return data.orders;
+    if (Array.isArray(data?.data))     return data.data;
+    if (Array.isArray(data?.result))   return data.result;
+    if (Array.isArray(data?.results))  return data.results;
+    if (Array.isArray(data?.records))  return data.records;
     if (data && typeof data === 'object') return [data];
     return [];
   };
@@ -122,16 +131,33 @@ const DashboardHome = ({ onNavigate }) => {
       setRecentOrders(allOrders);
       setTotalOrders(allOrders.length);
 
-      // ── Calculate total sales (only completed orders) ──
+      // ── Status counts ──
+      setDeliveredCount(
+        allOrders.filter(o => DONE_STATUSES.includes(getStatus(o))).length
+      );
+      setPendingCount(
+        allOrders.filter(o =>
+          ['Pending', 'pending', 'Processing', 'Accepted', 'accepted']
+            .includes(getStatus(o))
+        ).length
+      );
+      setRejectedCount(
+        allOrders.filter(o =>
+          ['Rejected', 'rejected', 'Cancelled', 'cancelled']
+            .includes(getStatus(o))
+        ).length
+      );
+
+      // ── Total sales (delivered only) ──
       const completedOrders = allOrders.filter(
-        o => getStatus(o) === 'Delivered'
+        o => DONE_STATUSES.includes(getStatus(o))
       );
       const sales = completedOrders.reduce(
         (sum, o) => sum + getTotalRaw(o), 0
       );
       setTotalSales(sales);
 
-      // ── Calculate top 5 medicines ──
+      // ── Top 5 medicines ──
       const medicineMap = {};
       allOrders.forEach(order => {
         getItems(order).forEach(item => {
@@ -142,12 +168,10 @@ const DashboardHome = ({ onNavigate }) => {
         });
       });
 
-      // Sort by quantity sold
       const sorted = Object.entries(medicineMap)
         .sort((a, b) => b[1] - a[1])
         .slice(0, 5);
 
-      // Calculate progress relative to top seller
       const maxSales = sorted[0]?.[1] || 1;
       const top5 = sorted.map(([name, sales]) => ({
         name,
@@ -163,6 +187,9 @@ const DashboardHome = ({ onNavigate }) => {
       setTotalOrders(0);
       setTotalSales(0);
       setTopMedicines([]);
+      setDeliveredCount(0);
+      setPendingCount(0);
+      setRejectedCount(0);
     } finally {
       setLoading(false);
     }
@@ -201,12 +228,12 @@ const DashboardHome = ({ onNavigate }) => {
     s === 'Ready'     ? 'status-completed' :
     'status-processing';
 
-  // Total units sold across all medicines
   const totalUnitsSold = topMedicines.reduce((sum, m) => sum + m.sales, 0);
 
   // =========================================================================
   return (
     <>
+      {/* ── Header ── */}
       <section className="overview-header">
         <div className="overview-title">
           <h2>Daily Overview</h2>
@@ -214,7 +241,7 @@ const DashboardHome = ({ onNavigate }) => {
         </div>
       </section>
 
-      {/* ── Stats ── */}
+      {/* ── Stats Grid ── */}
       <section className="stats-grid">
         <StatCard
           title="Total Sales"
@@ -236,6 +263,47 @@ const DashboardHome = ({ onNavigate }) => {
           colorClass="items"
         />
       </section>
+
+      {/* ════════════════════════════════════════════════════════
+          SUMMARY BAR - order status counts
+      ════════════════════════════════════════════════════════ */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(4, 1fr)',
+        gap: '16px',
+        marginBottom: '24px',
+      }}>
+        {[
+          { label: 'Total Orders',
+            value: totalOrders,
+            color: 'var(--accent,#f59e0b)', icon: '📦' },
+          { label: 'Delivered',
+            value: deliveredCount,
+            color: '#22c55e', icon: '✅' },
+          { label: 'Pending',
+            value: pendingCount,
+            color: '#f59e0b', icon: '⏳' },
+          { label: 'Rejected',
+            value: rejectedCount,
+            color: '#ef4444', icon: '❌' },
+        ].map((s, i) => (
+          <div key={i} className="card"
+            style={{ padding: '16px', display: 'flex',
+              alignItems: 'center', gap: '14px' }}>
+            <div style={{ fontSize: '26px' }}>{s.icon}</div>
+            <div>
+              <div style={{ fontSize: '11px', color: '#9ca3af',
+                marginBottom: '4px', fontWeight: '500' }}>
+                {s.label}
+              </div>
+              <div style={{ fontSize: '22px', fontWeight: '700',
+                color: s.color }}>
+                {s.value}
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
 
       {/* ── Two Column Layout ── */}
       <div className="content-row">
@@ -370,7 +438,8 @@ const DashboardHome = ({ onNavigate }) => {
             </span>
           </div>
         </section>
-      </div>
+
+      </div>{/* end content-row */}
     </>
   );
 };

@@ -272,45 +272,6 @@ const FinancialReports = () => {
             />
           </section>
 
-          {/* ════════════════════════════════════════════════════════
-              SUMMARY BAR - order status counts
-          ════════════════════════════════════════════════════════ */}
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(4, 1fr)',
-            gap: '16px', marginBottom: '24px',
-          }}>
-            {[
-              { label: 'Total Orders',
-                value: orders.length,
-                color: 'var(--accent,#f59e0b)', icon: '📦' },
-              { label: 'Delivered',
-                value: doneOrders.length,
-                color: '#22c55e', icon: '✅' },
-              { label: 'Pending',
-                value: pendingOrders.length,
-                color: '#f59e0b', icon: '⏳' },
-              { label: 'Rejected',
-                value: rejectedOrders.length,
-                color: '#ef4444', icon: '❌' },
-            ].map((s, i) => (
-              <div key={i} className="card"
-                style={{ padding: '16px', display: 'flex',
-                  alignItems: 'center', gap: '14px' }}>
-                <div style={{ fontSize: '26px' }}>{s.icon}</div>
-                <div>
-                  <div style={{ fontSize: '11px', color: '#9ca3af',
-                    marginBottom: '4px', fontWeight: '500' }}>
-                    {s.label}
-                  </div>
-                  <div style={{ fontSize: '22px', fontWeight: '700',
-                    color: s.color }}>
-                    {s.value}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
 
           {/* ════════════════════════════════════════════════════════
               SETTLEMENT SECTION - money due from admin
@@ -498,17 +459,15 @@ const FinancialReports = () => {
                     {/* Footer total */}
                     <tfoot>
                       <tr style={{ borderTop: '2px solid var(--border,rgba(255,255,255,0.1))' }}>
-                        <td colSpan={3} style={{ padding: '12px',
+                       <td colSpan={4} style={{ padding: '12px',
                           fontWeight: '700', color: '#9ca3af',
                           fontSize: '12px' }}>
-                          TOTAL DUE ({filteredSettlementOrders.length} orders)
+                          TOTAL ({orders.length} orders)
                         </td>
-                        <td style={{ padding: '12px', fontWeight: '800',
-                          color: 'var(--accent,#f59e0b)', fontSize: '14px' }}>
-                          ${filteredSettlementOrders.reduce((sum, o) =>
-                            sum + parseFloat(
-                              o.amount ?? o.totalAmount ?? o.totalPrice ?? 0
-                            ), 0).toFixed(2)}
+                        <td style={{ padding: '12px', fontWeight: '700',
+                          color: 'var(--accent,#f59e0b)' }}>
+                          ${settlementTotal.toLocaleString('en-US', {
+                          minimumFractionDigits: 2 })}
                         </td>
                         <td colSpan={2} />
                       </tr>
