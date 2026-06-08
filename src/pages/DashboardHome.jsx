@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { TrendingUp, Package, Layers, Pill } from 'lucide-react';
+import { TrendingUp, Package, Layers, Pill, BarChart3, Clock } from 'lucide-react';
 import StatCard from './StatCard';
 
-const API_BASE = 'http://165.22.91.187:5000/api/PharmacyOrder';
+const API_BASE   = 'http://165.22.91.187:5000/api/PharmacyOrder';
+const SETTLE_URL = 'http://165.22.91.187:5000/api/PharmacySettlement';
 
 const DONE_STATUSES = [
   'Delivered', 'delivered',
@@ -42,6 +43,9 @@ const DashboardHome = ({ onNavigate }) => {
   const [deliveredCount, setDeliveredCount] = useState(0);
   const [pendingCount, setPendingCount]     = useState(0);
   const [rejectedCount, setRejectedCount]   = useState(0);
+
+  // ─── Settlement data ──────────────────────────────────────────────────────
+  const [settlement, setSettlement] = useState(null);
 
   // ─── Auth header ──────────────────────────────────────────────────────────
   const authHeader = () => {
@@ -96,11 +100,14 @@ const DashboardHome = ({ onNavigate }) => {
   const loadOrders = async () => {
     setLoading(true);
     try {
-      const [activeRes, historyRes] = await Promise.all([
+      const [activeRes, historyRes, settleRes] = await Promise.all([
         fetch(`${API_BASE}/active`, {
           headers: { Accept: 'application/json', ...authHeader() },
         }).catch(() => ({ ok: false })),
         fetch(`${API_BASE}/history`, {
+          headers: { Accept: 'application/json', ...authHeader() },
+        }).catch(() => ({ ok: false })),
+        fetch(SETTLE_URL, {
           headers: { Accept: 'application/json', ...authHeader() },
         }).catch(() => ({ ok: false })),
       ]);
@@ -181,6 +188,15 @@ const DashboardHome = ({ onNavigate }) => {
 
       setTopMedicines(top5);
 
+      // ── Settlement data ──
+      if (settleRes.ok) {
+        const text = await settleRes.text();
+        if (text.trim()) {
+          const data = JSON.parse(text);
+          setSettlement(data);
+        }
+      }
+
     } catch (err) {
       console.error('Failed to load orders:', err);
       setRecentOrders([]);
@@ -230,6 +246,9 @@ const DashboardHome = ({ onNavigate }) => {
 
   const totalUnitsSold = topMedicines.reduce((sum, m) => sum + m.sales, 0);
 
+  // ─── Settlement helpers ───────────────────────────────────────────────────
+  const settlementTotal = parseFloat(settlement?.totalAmount ?? 0);
+
   // =========================================================================
   return (
     <>
@@ -244,11 +263,11 @@ const DashboardHome = ({ onNavigate }) => {
       {/* ── Stats Grid ── */}
       <section className="stats-grid">
         <StatCard
-          title="Total Sales"
-          value={`$${totalSales.toLocaleString('en-US', {
+          title="Due From Admin"
+          value={`$${settlementTotal.toLocaleString('en-US', {
             minimumFractionDigits: 2 })}`}
-          icon={TrendingUp}
-          colorClass="sales"
+          icon={BarChart3}
+          colorClass="orders"
         />
         <StatCard
           title="Orders"

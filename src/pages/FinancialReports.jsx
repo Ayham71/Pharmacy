@@ -239,14 +239,6 @@ const FinancialReports = () => {
               STATS GRID - 4 cards
           ════════════════════════════════════════════════════════ */}
           <section className="stats-grid">
-            {/* Total earned from delivered orders */}
-            <StatCard
-              title="Total Sales"
-              value={`$${totalEarned.toLocaleString('en-US', {
-                minimumFractionDigits: 2 })}`}
-              icon={TrendingUp}
-              colorClass="sales"
-            />
             {/* Amount pharmacy is owed by admin */}
             <StatCard
               title="Due From Admin"
